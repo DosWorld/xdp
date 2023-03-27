@@ -27,7 +27,7 @@ program XDP;
 
 
 const
-  VERSION               = '0.7.12';
+  VERSION               = '0.7.12dw';
   
   NUMDELIMITERS         = 22;
   NUMKEYWORDS           = 31;
@@ -4434,9 +4434,10 @@ var
 
 begin
 
-if ParamCount < 1 then
-  begin
-  WriteLn('XD Pascal compiler v. ', VERSION, '. Developed by Vasiliy Tereshkov, 2009-2010');
+if ParamCount < 1 then begin
+  WriteLn('XD Pascal compiler v. ', VERSION, '.');
+  WriteLn('Copyright 2010 Vasiliy Tereshkov');
+  WriteLn('Copyright 2023 DosWorld');
   WriteLn;
   WriteLn('Usage: xdp <file.pas> [/n]');
   WriteLn;
