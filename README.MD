@@ -13,10 +13,11 @@ The compiler supports VGA graphics, floating-point arithmetic, etc.
 * system.pas renamed in xdpsys.pas
 * All included files ($I file} searches, also, in folder with xdp.exe
 * Support LFN (long file name) for Runtime (ReWrite, Reset, DeleteFile).
+* Generation changed to EXE (small memory model)
 
 ### Features
 * Fast recursive descent parsing
-* Native x86 code generation (COM executables)
+* Native x86 code generation (EXE executables)
 * No external assembler or linker
 * Source file inclusion facility
 * Single-precision floating-point arithmetic (using the x87 FPU)
@@ -189,7 +190,7 @@ function Ln(x: Real): Real
 function SqRt(x: Real): Real
 ```
 ### Compiler 
-The compiler builds a DOS .com executable file according to the small
+The compiler builds a DOS .exe executable file according to the small
 memory model. The program has the segments of code (pointed by CS), 
 data (pointed by DS) and stack (pointed by SS): 
 

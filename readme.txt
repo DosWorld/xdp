@@ -8,6 +8,9 @@ vtereshkov@mail.ru
 
 February 2009 - June 2010
 
+DosWorld
+Apr 2023
+
 
 
 
@@ -201,7 +204,7 @@ function SqRt(x: Real): Real.
 
 IV. COMPILER 
 
-The compiler builds a DOS .com executable file according to the small
+The compiler builds a DOS .exe executable file according to the small
 memory model. The program has the segments of code (pointed by CS), 
 data (pointed by DS) and stack (pointed by SS): 
 

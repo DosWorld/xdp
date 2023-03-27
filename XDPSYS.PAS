@@ -517,6 +517,7 @@ BEGIN
 END;
 
 // String manipulation routines
+
 FUNCTION StrLen(CONST s: string): SmallInt;
 BEGIN
         Result := 0;

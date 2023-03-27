@@ -27,7 +27,7 @@ program XDP;
 
 
 const
-  VERSION               = '0.7.12dw';
+  VERSION               = '0.7.13dw';
   
   NUMDELIMITERS         = 22;
   NUMKEYWORDS           = 31;
@@ -181,7 +181,6 @@ const
   MAXUNITNESTING        = 5;
   MAXFIELDS             = 100;
 
-  PSPSIZE               = $100;
   SEGMENTSIZE           = $10000;
   MAXSTATICSTRDATASIZE  = $4000;
 
@@ -201,7 +200,7 @@ VALPASSING            = 1;
 CONSTPASSING          = 2;
 VARPASSING            = 3;
 
-
+CONST MZ_SIGN = $5A4D;
 
 type
 
@@ -276,7 +275,28 @@ TIdentifier = record
         IsUnresolvedForward : Boolean;
 end;
 
+{$PACKRECORDS 1}
+MZ_HEADER = RECORD
+        sign         : WORD;
+        lblk_size    : WORD;
+        blk_count    : WORD;
+        relocs_count : WORD;
+        header_par   : WORD;
+        min_ext_par  : WORD;
+        max_ext_par  : WORD;
+        ss           : WORD;
+        sp           : WORD;
+        chksum       : WORD;
+        ip           : WORD;
+        cs           : WORD;
+        relocs_ofs   : WORD;
+        overlay_num  : WORD;
+END;
 
+MZ_RELOC = RECORD
+        ofs : WORD;
+        seg : WORD;
+END;
 
 const
   Keyword: array [1..NUMKEYWORDS] of TKeyName =
@@ -315,11 +335,14 @@ const
     );
 
 
-
 var
   Ident: array [1..MAXIDENTS] of TIdentifier;
   Types: array [1..MAXTYPES] of TType;
   UnitStack: array [1..MAXUNITNESTING] of TUnit;
+  ExeHeader : MZ_HEADER;
+  ExeRelocs : array[0..1023] of MZ_RELOC;
+  WriteExeRlocsCount : integer;
+  StaticCodeData: array [0..65535] of Byte;
   StaticStringData: array [0..MAXSTATICSTRDATASIZE - 1] of Char;
   CodePosStack: array [0..1023] of Integer;
   BlockStack: array [1..MAXNESTING] of Byte;
@@ -348,7 +371,7 @@ var
 
 
 
-FUNCTION basename(s : STRING):STRING;
+FUNCTION BaseName(s : STRING):STRING;
 VAR i : INTEGER;
 BEGIN
         i := Length(s);
@@ -357,10 +380,10 @@ BEGIN
                 Dec(i);
         END;
         IF i <> 0 THEN s := Copy(s, i+1, Length(s) - i);
-        basename := s;
+        Result := s;
 END;
 
-FUNCTION getpathname(s : STRING):STRING;
+FUNCTION GetPathName(s : STRING):STRING;
 VAR i : INTEGER;
 BEGIN
         i := Length(s);
@@ -369,7 +392,7 @@ BEGIN
                 Dec(i);
         END;
         IF i <> 0 THEN s := Copy(s, 1, i);
-        getpathname := s;
+        Result := s;
 END;
 
 procedure DisposeAll;
@@ -395,8 +418,7 @@ end;
   
 procedure Error(const Msg: string);
 begin
-        WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
-        WriteLn;
+        WriteLn(BaseName(UnitStack[UnitStackTop].FileName), '(', Line, '): ', Msg);
         DisposeAll;
         Close(InFile);
         Close(OutFile);
@@ -460,9 +482,8 @@ end;
 
 function GetIdent(const S: TName): Integer;
 begin
-Result := GetIdentUnsafe(S);
-if Result = 0 then
-  Error('Unknown identifier: ' + S);
+        Result := GetIdentUnsafe(S);
+        if Result = 0 then Error('Unknown identifier: ' + S);
 end;
 
 
@@ -1233,30 +1254,44 @@ end;
 
 procedure Gen(b: Byte);
 begin
-if (Pass = CALLDETERMPASS) or BlockIsNotDead[BlockStack[BlockStackTop]] then
-  begin
-  Inc(CodeSize);
-  if Pass = CODEGENERATIONPASS then
-    begin
-    if CodeSize > SEGMENTSIZE - PSPSIZE then
-      Error('Maximum code size exceeded');
-    Write(OutFile, b);
-    end;
-  end;
+        if (Pass = CALLDETERMPASS) or BlockIsNotDead[BlockStack[BlockStackTop]] then begin
+                if Pass = CODEGENERATIONPASS then begin
+                        if CodeSize > SEGMENTSIZE then Error('Maximum code size exceeded');
+                        StaticCodeData[CodeSize] := b;
+                end;
+                Inc(CodeSize);
+        end;
 end;
 
-
+procedure GenStr(str : string);
+var i : integer;
+begin
+        if (Pass = CALLDETERMPASS) or BlockIsNotDead[BlockStack[BlockStackTop]] then begin
+                if Pass = CODEGENERATIONPASS then begin
+                        if CodeSize + length(str) > SEGMENTSIZE then Error('Maximum code size exceeded');
+                        for i:=1 to length(str) do begin
+                                StaticCodeData[CodeSize] := ord(str[i]);
+                                Inc(CodeSize);
+                        end;
+                end else CodeSize := CodeSize + length(str);
+        end;
+end;
 
 procedure GenAt(Pos: LongInt; b: Byte);
+{
 var
   PrevPos: LongInt;
+}
 begin
 if (Pass = CODEGENERATIONPASS) and BlockIsNotDead[BlockStack[BlockStackTop]] then
   begin
+StaticCodeData[Pos] := b;
+{
   PrevPos := FilePos(OutFile);
   Seek(OutFile, Pos);
   Write(OutFile, b);
   Seek(OutFile, PrevPos);
+}
   end;
 end;
 
@@ -1340,22 +1375,22 @@ Gen($07);                                                       // pop es
 
 case TypeSize(DataType) of
   1: begin
-     Gen($26); Gen($8A); Gen($04);                              // mov al, es:[si]
-     Gen($98);                                                  // cbw
-     Gen($66); Gen($98);                                        // cwde
+     GenStr(#$26+#$8A+#$04+                           // mov al, es:[si]
+     #$98+                                            // cbw
+     #$66+#$98);                                      // cwde
      end;
   2: begin
-     Gen($26); Gen($8B); Gen($04);                              // mov ax, es:[si]
-     Gen($66); Gen($98);                                        // cwde
+     GenStr(#$26+#$8B+#$04+                           // mov ax, es:[si]
+     #$66+#$98);                                      // cwde
      end;
   4: begin
-     Gen($66); Gen($26); Gen($8B); Gen($04);                    // mov eax, es:[si]
+     GenStr(#$66+#$26+#$8B+#$04);                     // mov eax, es:[si]
      end;
 else
   Error('Internal fault: Illegal designator size');
 end;
 
-Gen($66); Gen($50);                                             // push eax
+GenStr(#$66+#$50);                                    // push eax
 end;
 
 
@@ -1430,7 +1465,7 @@ end;
 
 procedure SaveStackTop;
 begin
-Gen($66); Gen($5A);                                                   // pop edx
+GenStr(#$66+#$5A);        // pop edx
 end;
 
 
@@ -1438,16 +1473,16 @@ end;
 
 procedure RestoreStackTop;
 begin
-Gen($66); Gen($52);                                                   // push edx
+GenStr(#$66+#$52);        // push edx
 end;
 
 
 
 procedure SaveFileHandle;
 begin
-Gen($66); Gen($5F);                                                   // pop edi
-Gen($66); Gen($58);                                                   // pop eax  ; pop and discard unnecessary stream handle, i.e. 0
-Gen($66); Gen($58);                                                   // pop eax  ; pop and discard unnecessary console handle, i.e. 0
+GenStr(#$66+#$5F+            // pop edi
+#$66+#$58+                   // pop eax  ; pop and discard unnecessary stream handle, i.e. 0
+#$66+#$58);                  // pop eax  ; pop and discard unnecessary console handle, i.e. 0
 end;
 
 
@@ -1455,7 +1490,7 @@ end;
 
 procedure RestoreFileHandle;
 begin
-Gen($66); Gen($57);                                                   // push edi
+GenStr(#$66+#$57);                                                   // push edi
 end;
 
 
@@ -1756,23 +1791,23 @@ if Types[ResultType].TypeKind = REALTYPE then     // Real type
   case op of
     PLUSTOK:
       begin
-      Gen($DE); Gen($C1);                                               // fadd  ;  st(1) := st(1) + st;  pop
+      GenStr(#$DE+#$C1);                                               // fadd  ;  st(1) := st(1) + st;  pop
       end;
     MINUSTOK:
       begin
-      Gen($DE); Gen($E9);                                               // fsub  ;  st(1) := st(1) - st;  pop
+      GenStr(#$DE+#$E9);                                               // fsub  ;  st(1) := st(1) - st;  pop
       end;
     MULTOK:
       begin
-      Gen($DE); Gen($C9);                                               // fmul  ;  st(1) := st(1) * st;  pop
+      GenStr(#$DE+#$C9);                                               // fmul  ;  st(1) := st(1) * st;  pop
       end;
     DIVTOK:
       begin
-      Gen($DE); Gen($F9);                                               // fdiv  ;  st(1) := st(1) / st;  pop
+      GenStr(#$DE+#$F9);                                               // fdiv  ;  st(1) := st(1) / st;  pop
       end;
   end;// case
 
-  Gen($36); Gen($D9); Gen($1F);                                         // fstp ss:[bx]  ;  ss:[bx] := result;  pop
+  GenStr(#$36+#$D9+#$1F);                                         // fstp ss:[bx]  ;  ss:[bx] := result;  pop
 
   end // if
 else                              // Ordinal types
@@ -1886,10 +1921,10 @@ begin
 // EDX should be preserved
 
 // Source value
-Gen($66); Gen($58);                                                     // pop eax
+GenStr(#$66+#$58+                                                     // pop eax
 // Destination address
-Gen($5E);                                                               // pop si
-Gen($07);                                                               // pop es
+#$5E+                                                               // pop si
+#$07);                                                               // pop es
 
 case TypeSize(DesignatorType) of
   1: begin
@@ -2059,10 +2094,12 @@ procedure GenerateIfProlog;
 begin
 Inc(CodePosStackTop);
 CodePosStack[CodePosStackTop] := CodeSize;
-
+{
 Gen($90);                                                   // nop   ; jump to the IF block end will be inserted here
 Gen($90);                                                   // nop
 Gen($90);                                                   // nop
+}
+GenStr(#$90+#$90+#$90);
 end;
 
 
@@ -2247,51 +2284,53 @@ end;
 procedure GenerateProgramProlog;
 begin
 // Initialize segment registers
-Gen($8C); Gen($C8);                                         // mov ax, cs
-Gen($8E); Gen($C0);                                         // mov es, ax         ; Extra data segment base
-Gen($90);                                                   // nop
-Gen($90);                                                   // nop
-Gen($90);                                                   // nop                ; Reserved space for add ax, CodeSegmentSize
-Gen($8E); Gen($D8);                                         // mov ds, ax         ; Data segment base
-Gen($05); GenWord($1000);                                   // add ax, 1000h      ; Allocate 64 Kbytes for static data
-Gen($8E); Gen($D0);                                         // mov ss, ax         ; Stack segment base
-
+{ B80000                   mov     ax,0000h
+  50                       push    ax
+  50                       push    ax
+  1F                       pop     ds
+  07                       pop     es }
+        GenStr(#$B8+#$00+#$00+#$50+#$50+#$1F+#$07);
+        ExeRelocs[ExeHeader.relocs_count].seg := 0;
+        ExeRelocs[ExeHeader.relocs_count].ofs := 1;
+        Inc(ExeHeader.relocs_count);
 // Initialize FPU
-Gen($DB); Gen($E3);                                         // finit
-
-// Shrink allocated memory block to the maximum total size of code, data and stack segments (needed by New and Dispose)
-Gen($B4); Gen($4A);                                         // mov ah, 4Ah
-Gen($BB); GenWord($3000);                                   // mov bx, 3000h      ; New block size in paragraphs
-Gen($CD); Gen($21);                                         // int 21h            ; Block segment address is in ES
-
+        GenStr(#$DB+#$E3); // finit
 end;
-
-
 
 
 procedure GenerateProgramEpilog;
 var
   i, StoredCodeSize, CodeSegmentSize: Integer;
 begin
-GenerateHalt(0);
+        GenerateHalt(0);
 // End of pure code
-
-StoredCodeSize := CodeSize;
+        while (CodeSize and $0f) <> 0 do Gen($90); // nop
 
 // Complete program prolog
-CodeSegmentSize := (PSPSIZE + StoredCodeSize) div 16 + 1;                       // in paragraphs
+        CodeSegmentSize := CodeSize shr 4; // in paragraphs
 
-GenAt(4, $05); GenAt(5, CodeSegmentSize and $ff); GenAt(6, (CodeSegmentSize shr 8) and $ff);    // add ax, CodeSegmentSize
-
-// Align code segment
-for i := 1 to CodeSegmentSize * 16 - (PSPSIZE + StoredCodeSize) do
-  Gen($90);                                                                     // nop
+        GenAt(1, CodeSegmentSize and $ff);
+        GenAt(2, (CodeSegmentSize shr 8) and $ff);
 
 // Build static string data table at the end of the executable file (i.e. at the beginning of data segment)
-StoredCodeSize := CodeSize;
-for i := 0 to NumStaticStrChars - 1 do
-  Gen(Ord(StaticStringData[i]));                                                // db StaticStringData[i]
-CodeSize := StoredCodeSize;
+        StoredCodeSize := CodeSize;
+        while (NumStaticStrChars and $0f) <> 0 do begin
+                StaticStringData[NumStaticStrChars] := #0;
+                Inc(NumStaticStrChars);
+        end;
+        ExeHeader.ss := CodeSegmentSize + $1000;
+        WriteExeRlocsCount := ExeHeader.relocs_count;
+        while (SizeOf(MZ_HEADER) + SizeOf(MZ_RELOC) * WriteExeRlocsCount) and $0f <> 0 do begin
+                ExeRelocs[WriteExeRlocsCount].seg := 0;
+                ExeRelocs[WriteExeRlocsCount].ofs := 0;
+                Inc(WriteExeRlocsCount);
+        end;
+        ExeHeader.header_par := (SizeOf(MZ_HEADER) + SizeOf(MZ_RELOC) * WriteExeRlocsCount) shr 4;
+        ExeHeader.blk_count := ((CodeSize + NumStaticStrChars) SHR 9) + 1;
+        ExeHeader.lblk_size := ((CodeSize + NumStaticStrChars) AND $1FF);
+        ExeHeader.relocs_ofs := SizeOf(MZ_HEADER);
+        ExeHeader.min_ext_par := $2000 - (NumStaticStrChars shr 4);
+        ExeHeader.max_ext_par := ExeHeader.min_ext_par;
 end;
 
 
@@ -2299,19 +2338,18 @@ end;
 
 procedure GenerateStackFrameProlog(TotalLocalVarsSize: Integer);
 begin
-Gen($66); Gen($55);                                           // push ebp
-Gen($66); Gen($8B); Gen($EC);                                 // mov ebp, esp
-Gen($66); Gen($81); Gen($EC); GenDWord(TotalLocalVarsSize);   // sub esp, TotalLocalVarsSize
+{ // push ebp
+  // mov ebp, esp
+  // sub esp, TotalLocalVarsSize }
+        GenStr(#$66+#$55+#$66+#$8B+#$EC+#$66+#$81+#$EC);
+        GenDWord(TotalLocalVarsSize);
 end;
-
-
-
-
 
 procedure GenerateStackFrameEpilog;
 begin
-Gen($66); Gen($8B); Gen($E5);                                 // mov esp, ebp
-Gen($66); Gen($5D);                                           // pop ebp
+{ // mov esp, ebp
+  // pop ebp }
+        GenStr(#$66+#$8B+#$E5+#$66+#$5D);
 end;
 
 
@@ -2319,9 +2357,7 @@ end;
 
 procedure GenerateForwardReference;
 begin
-Gen($90);                                                     // nop   ; jump to the procedure entry point will be inserted here
-Gen($90);                                                     // nop
-Gen($90);                                                     // nop
+GenStr(#$90+#$90+#$90); // nop   ; jump to the procedure entry point will be inserted here
 end;
 
 
@@ -4396,6 +4432,9 @@ begin
         CodePosStackTop := 0;
         NumStaticStrChars := 0;
         GlobalDataSize := 0;
+        FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
+        ExeHeader.sign := MZ_SIGN;
+        ExeHeader.sp := $FFFE;
 end;
 
 procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
@@ -4422,10 +4461,7 @@ begin
                 WriteLn('Copyright 2010 Vasiliy Tereshkov');
                 WriteLn('Copyright 2023 DosWorld');
                 WriteLn;
-                WriteLn('Usage: xdp <file.pas> [/n]');
-                WriteLn;
-                WriteLn('       /n - disable optimization');
-                WriteLn;
+                WriteLn('Usage: xdp <file.pas>');
                 Halt(1);
         end;
 
@@ -4438,31 +4474,25 @@ begin
 
         ProgramName := ParamStr(1);
 
-        ChangeExt(ProgramName, 'com', ExeName);
+        ChangeExt(ProgramName, 'exe', ExeName);
         Assign(OutFile, ExeName);
 
-        if not OptimizationDisabled then begin
-                // Default mode
-                for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := FALSE;
-                
-                // Preliminary pass: compile the program and build the call graph
-                VarDataOrigin := 0;
-                ZeroAll;
-                
-                Pass := CALLDETERMPASS;
-                
-                InitScanner;
-                CompileProgram;
-                
-                // Visit the call graph nodes and mark all procedures that are called as not dead
-                MarkBlockNotDead(1);
-                
-                VarDataOrigin := NumStaticStrChars;
-        end else begin
-                for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := TRUE;
-                
-                VarDataOrigin := MAXSTATICSTRDATASIZE;
-        end;
+        // Default mode
+        for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := FALSE;
+        
+        // Preliminary pass: compile the program and build the call graph
+        VarDataOrigin := 0;
+        ZeroAll;
+        
+        Pass := CALLDETERMPASS;
+        
+        InitScanner;
+        CompileProgram;
+        
+        // Visit the call graph nodes and mark all procedures that are called as not dead
+        MarkBlockNotDead(1);
+        
+        VarDataOrigin := NumStaticStrChars;
 
 // Final pass: compile the program and generate output (BlockIsNotDead array is preserved)
 
@@ -4473,8 +4503,11 @@ begin
         if IOResult <> 0 then Error('Unable to open output file ' + ExeName);
         InitScanner;
         CompileProgram;
-        Close(OutFile);
+        BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
+        BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRlocsCount);
+        BlockWrite(OutFile, StaticCodeData, CodeSize);
+        BlockWrite(OutFile, StaticStringData, NumStaticStrChars);
 
-        WriteLn(basename(ProgramName), ' -> Code size: ', CodeSize, ', Data size: ', VarDataOrigin + GlobalDataSize);
+        Close(OutFile);
 end.
 
