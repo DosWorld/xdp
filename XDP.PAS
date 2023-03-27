@@ -197,85 +197,84 @@ const
 
   // Parameter passing
 
-  VALPASSING            = 1;
-  CONSTPASSING          = 2;
-  VARPASSING            = 3;
+VALPASSING            = 1;
+CONSTPASSING          = 2;
+VARPASSING            = 3;
 
 
 
 type
-  TString  = string [MAXSTRLENGTH];
-  TKeyName = string [MAXSTDTOKENLENGTH];
-  TName    = string [MAXNAMELENGTH];
 
-  TUnit = record
-    FileName: TString;
-    Pos, Line: Integer;
-  end;  
+TString  = string [MAXSTRLENGTH];
+TKeyName = string [MAXSTDTOKENLENGTH];
+TName    = string [MAXNAMELENGTH];
+
+TUnit = record
+        FileName: TString;
+        Pos, Line: Integer;
+end;  
   
-  TParam = record
-    Name: TName;
-    DataType: Byte;
-    PassMethod: Byte;
-  end;
+TParam = record
+        Name: TName;
+        DataType: Byte;
+        PassMethod: Byte;
+end;
 
-  PParam = ^TParam;
+PParam = ^TParam;
 
-  TField = record
-    Name: TName;
-    DataType: Byte;
-    Offset: Integer;
-  end;
+TField = record
+        Name: TName;
+        DataType: Byte;
+        Offset: Integer;
+end;
 
-  TType = record
-    Block: Byte;
-    case TypeKind: Byte of
-      SUBRANGETYPE:
-        (HostType: Byte;
-         Low, High: Integer);
-      POINTERTYPE, ARRAYTYPE:
-        (BaseType, IndexType: Byte);
-      RECORDTYPE:
-        (NumFields: Integer;
-         Field: array [1..MAXFIELDS] of ^TField);
-      FORWARDTYPE:
-        (TypeIdentName: TName);   
-  end;
+TType = record
+        Block: Byte;
+        case TypeKind: Byte of
+        SUBRANGETYPE:
+                (HostType: Byte;
+                Low, High: Integer);
+        POINTERTYPE, ARRAYTYPE:
+                (BaseType, IndexType: Byte);
+        RECORDTYPE:
+                (NumFields: Integer;
+                Field: array [1..MAXFIELDS] of ^TField);
+        FORWARDTYPE:
+                (TypeIdentName: TName);   
+end;
 
-  TConst = record
-    case Kind: Byte of
-      INTNUMBERTOK:
-        (Value: LongInt);
-      FRACNUMBERTOK:
-        (FracValue: Single);
-  end;
+TConst = record
+        case Kind: Byte of
+        INTNUMBERTOK:  (Value: LongInt);
+        FRACNUMBERTOK: (FracValue: Single);
+end;
 
-  TToken = record
-    Kind: Byte;
-    Name: TName;
-    Value: LongInt;
-    FracValue: Single;
-    StrAddress: Integer;
-    StrLength: Integer;
-  end;
+TToken = record
+        Kind       : Byte;
+        Name       : TName;
+        Value      : LongInt;
+        FracValue  : Single;
+        StrAddress : Integer;
+        StrLength  : Integer;
+end;
 
-  TIdentifier = record
-    Kind: Byte;
-    Name: TName;
-    Value: LongInt;                    // Value for a constant, address for a variable, procedure or function
-    FracValue: Single;
-    Block: Byte;                       // Index of a block in which the identifier is defined
-    NestingLevel: Byte;
-    DataType: Byte;
-    RecType: Byte;                     // Parent record type code for a field
-    Scope: Byte;
-    PassMethod: Byte;                  // Value, CONST or VAR parameter status
-    NumParams: Integer;
-    Param: array [1..MAXPARAMS] of PParam;
-    ProcAsBlock: Byte;
-    PredefIndex: Byte;
-    IsUnresolvedForward: Boolean;
-  end;
+TIdentifier = record
+        Kind                : Byte;
+        Name                : TName;
+        Value               : LongInt; // Value for a constant, address for a variable, procedure or function
+        FracValue           : Single;
+        Block               : Byte;    // Index of a block in which the identifier is defined
+        NestingLevel        : Byte;
+        DataType            : Byte;
+        RecType             : Byte;    // Parent record type code for a field
+        Scope               : Byte;
+        PassMethod          : Byte;    // Value, CONST or VAR parameter status
+        NumParams           : Integer;
+        Param               : array [1..MAXPARAMS] of PParam;
+        ProcAsBlock         : Byte;
+        PredefIndex         : Byte;
+        IsUnresolvedForward : Boolean;
+end;
 
 
 
@@ -396,12 +395,12 @@ end;
   
 procedure Error(const Msg: string);
 begin
-WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
-WriteLn;
-DisposeAll;
-Close(InFile);
-Close(OutFile);
-Halt(1);
+        WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
+        WriteLn;
+        DisposeAll;
+        Close(InFile);
+        Close(OutFile);
+        Halt(1);
 end;
 
 
@@ -1547,57 +1546,49 @@ end;// GenerateHalt
 
 
 
-procedure GenerateInterrupt(InterruptNumber: Byte);
+procedure GenerateInterrupt(IntNumber: Byte);
 begin
-{
-Gen($5E);                                                               // pop si
-Gen($07);                                                               // pop es
-Gen($26); Gen($8B); Gen($44); Gen($10);                                 // mov ax, es:[si + 24]   ; ds
-Gen($1E);                                                               // push ds
-Gen($8E); Gen($D8);                                                     // mov ds, ax
-Gen($26); Gen($8B); Gen($04);                                           // mov ax, es:[si]
-Gen($26); Gen($8B); Gen($5C); Gen($04);                                 // mov bx, es:[si + 4]
-Gen($26); Gen($8B); Gen($4C); Gen($08);                                 // mov cx, es:[si + 8]
-Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov dx, es:[si + 12]
-Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov di, es:[si + 16]
-Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov si, es:[si + 20]
-Gen($CD); Gen(InterruptNumber);                                         // int InterruptNumber
-Gen($9C);                                                               // pushf
-Gen($26); Gen($89); Gen($04);                                           // mov es:[si], ax
-Gen($26); Gen($89); Gen($5C); Gen($04);                                 // mov es:[si + 4], bx
-Gen($26); Gen($89); Gen($4C); Gen($08);                                 // mov es:[si + 8], cx
-Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 12], dx
-Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 16], di
-Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 20], si
-Gen($26); Gen($8F); Gen($44); Gen($14);                                 // pop es:[si + 28]       ; flags
-Gen($1F);                                                               // pop ds
-}
-Gen($5E);       // pop     si
-Gen($07);       // pop     es
-Gen($1E);       // push    ds
-Gen($55);       // push    bp
-Gen($89); Gen($F5);     // mov     bp,si
-Gen($26); Gen($FF); Gen($76); Gen($1C); // push    word ptr es:[bp+1Ch]
-Gen($26); Gen($8B); Gen($46); Gen($18); // mov     ax,es:[bp+18h]
-Gen($8E); Gen($D8);     // mov     ds,ax
-Gen($26); Gen($8B); Gen($46); Gen($00); // mov     ax,es:[bp]
-Gen($26); Gen($8B); Gen($5E); Gen($04); // mov     bx,es:[bp+4]
-Gen($26); Gen($8B); Gen($4E); Gen($08); // mov     cx,es:[bp+8]
-Gen($26); Gen($8B); Gen($56); Gen($0C); // mov     dx,es:[bp+0Ch]
-Gen($26); Gen($8B); Gen($7E); Gen($10); // mov     di,es:[bp+10h]
-Gen($26); Gen($8B); Gen($76); Gen($14); // mov     si,es:[bp+14h]
-Gen($9D);       // popf 
-Gen($CD); Gen(InterruptNumber); // int InterruptNumber
-Gen($9C);       // pushf 
-Gen($26); Gen($89); Gen($46); Gen($00); // mov     es:[bp],ax
-Gen($26); Gen($89); Gen($5E); Gen($04); // mov     es:[bp+4],bx
-Gen($26); Gen($89); Gen($4E); Gen($08); // mov     es:[bp+8],cx
-Gen($26); Gen($89); Gen($56); Gen($0C); // mov     es:[bp+0Ch],dx
-Gen($26); Gen($89); Gen($7E); Gen($10); // mov     es:[bp+10h],di
-Gen($26); Gen($89); Gen($76); Gen($14); // mov     es:[bp+14h],si
-Gen($26); Gen($8F); Gen($46); Gen($1C); // pop     word ptr es:[bp+1Ch]
-Gen($5D);       // pop     bp
-Gen($1F);       // pop     ds
+        Gen($5E);                     // pop     si
+        Gen($07);                     // pop     es
+        Gen($1E);                     // push    ds
+        Gen($55);                     // push    bp
+        Gen($89); Gen($F5);           // mov     bp,si
+        Gen($26);
+        Gen($FF); Gen($76); Gen($1C); // push    word ptr es:[bp+1Ch]
+        Gen($26);
+        Gen($8B); Gen($46); Gen($18); // mov     ax,es:[bp+18h]
+        Gen($8E); Gen($D8);           // mov     ds,ax
+        Gen($26);
+        Gen($8B); Gen($46); Gen($00); // mov     ax,es:[bp]
+        Gen($26);
+        Gen($8B); Gen($5E); Gen($04); // mov     bx,es:[bp+4]
+        Gen($26);
+        Gen($8B); Gen($4E); Gen($08); // mov     cx,es:[bp+8]
+        Gen($26);
+        Gen($8B); Gen($56); Gen($0C); // mov     dx,es:[bp+0Ch]
+        Gen($26);
+        Gen($8B); Gen($7E); Gen($10); // mov     di,es:[bp+10h]
+        Gen($26);
+        Gen($8B); Gen($76); Gen($14); // mov     si,es:[bp+14h]
+        Gen($9D);                     // popf 
+        Gen($CD); Gen(IntNumber);     // int InterruptNumber
+        Gen($9C);                     // pushf 
+        Gen($26);
+        Gen($89); Gen($46); Gen($00); // mov     es:[bp],ax
+        Gen($26);
+        Gen($89); Gen($5E); Gen($04); // mov     es:[bp+4],bx
+        Gen($26);
+        Gen($89); Gen($4E); Gen($08); // mov     es:[bp+8],cx
+        Gen($26);
+        Gen($89); Gen($56); Gen($0C); // mov     es:[bp+0Ch],dx
+        Gen($26);
+        Gen($89); Gen($7E); Gen($10); // mov     es:[bp+10h],di
+        Gen($26);
+        Gen($89); Gen($76); Gen($14); // mov     es:[bp+14h],si
+        Gen($26);
+        Gen($8F); Gen($46); Gen($1C); // pop     word ptr es:[bp+1Ch]
+        Gen($5D);                     // pop     bp
+        Gen($1F);                     // pop     ds
 end;// GenerateInterrupt
 
 
@@ -4397,110 +4388,93 @@ end;
 
 procedure ZeroAll;
 begin
-NumIdent := 0; NumTypes := 0; NumBlocks := 0; BlockStackTop := 0; CodeSize := 0; CodePosStackTop := 0;
-NumStaticStrChars := 0;
-GlobalDataSize := 0;
+        NumIdent := 0;
+        NumTypes := 0;
+        NumBlocks := 0;
+        BlockStackTop := 0;
+        CodeSize := 0;
+        CodePosStackTop := 0;
+        NumStaticStrChars := 0;
+        GlobalDataSize := 0;
 end;
 
-
-
-
-
 procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
-var
-  i, DotPos: Integer;
+var     i, DotPos: Integer;
 begin
-i := Length(InStr);
-DotPos := 0;
-
-while (i > 0) and (DotPos = 0) do
-  begin
-  if InStr[i] = '.' then DotPos := i;
-  Dec(i);
-  end;
-
-if DotPos > 0 then
-  OutStr := Copy(InStr, 1, DotPos) + Ext
-else
-  OutStr := InStr + Ext;
+        i := Length(InStr);
+        DotPos := 0;
+        
+        while (i > 0) and (DotPos = 0) do begin
+                if InStr[i] = '.' then DotPos := i;
+                Dec(i);
+        end;
+        
+        if DotPos > 0 then OutStr := Copy(InStr, 1, DotPos) + Ext
+        else OutStr := InStr + Ext;
 end;  
 
-var
-  BlockIndex: Integer;
-  OptimizationDisabled: Boolean;
-
-
-
+var     BlockIndex: Integer;
+        OptimizationDisabled: Boolean;
 
 begin
+        if ParamCount < 1 then begin
+                WriteLn('XD Pascal compiler v. ', VERSION, '.');
+                WriteLn('Copyright 2010 Vasiliy Tereshkov');
+                WriteLn('Copyright 2023 DosWorld');
+                WriteLn;
+                WriteLn('Usage: xdp <file.pas> [/n]');
+                WriteLn;
+                WriteLn('       /n - disable optimization');
+                WriteLn;
+                Halt(1);
+        end;
 
-if ParamCount < 1 then begin
-  WriteLn('XD Pascal compiler v. ', VERSION, '.');
-  WriteLn('Copyright 2010 Vasiliy Tereshkov');
-  WriteLn('Copyright 2023 DosWorld');
-  WriteLn;
-  WriteLn('Usage: xdp <file.pas> [/n]');
-  WriteLn;
-  WriteLn('       /n - disable optimization');
-  WriteLn;
-  Halt(1);
-  end;
+        if ParamCount > 1 then
+                OptimizationDisabled := (ParamStr(2) = '/n') or (ParamStr(2) = '/N')
+        else
+                OptimizationDisabled := FALSE;
 
-if ParamCount > 1 then
-  OptimizationDisabled := (ParamStr(2) = '/n') or (ParamStr(2) = '/N')
-else
-  OptimizationDisabled := FALSE;
+        syspath := getpathname(ParamStr(0));
 
-syspath := getpathname(ParamStr(0));
+        ProgramName := ParamStr(1);
 
-ProgramName := ParamStr(1);
+        ChangeExt(ProgramName, 'com', ExeName);
+        Assign(OutFile, ExeName);
 
-ChangeExt(ProgramName, 'com', ExeName);
-Assign(OutFile, ExeName);
-
-if not OptimizationDisabled then             // Default mode
-  begin
-  for BlockIndex := 1 to MAXBLOCKS do
-    BlockIsNotDead[BlockIndex] := FALSE;
-
-  // Preliminary pass: compile the program and build the call graph
-  VarDataOrigin := 0;
-  ZeroAll;
-
-  Pass := CALLDETERMPASS;
-
-  InitScanner;
-  CompileProgram;
-
-  // Visit the call graph nodes and mark all procedures that are called as not dead
-  MarkBlockNotDead(1);
-
-  VarDataOrigin := NumStaticStrChars;
-  end
-else
-  begin
-  for BlockIndex := 1 to MAXBLOCKS do
-    BlockIsNotDead[BlockIndex] := TRUE;
-
-  VarDataOrigin := MAXSTATICSTRDATASIZE;
-  end;
+        if not OptimizationDisabled then begin
+                // Default mode
+                for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := FALSE;
+                
+                // Preliminary pass: compile the program and build the call graph
+                VarDataOrigin := 0;
+                ZeroAll;
+                
+                Pass := CALLDETERMPASS;
+                
+                InitScanner;
+                CompileProgram;
+                
+                // Visit the call graph nodes and mark all procedures that are called as not dead
+                MarkBlockNotDead(1);
+                
+                VarDataOrigin := NumStaticStrChars;
+        end else begin
+                for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := TRUE;
+                
+                VarDataOrigin := MAXSTATICSTRDATASIZE;
+        end;
 
 // Final pass: compile the program and generate output (BlockIsNotDead array is preserved)
 
-ZeroAll;
+        ZeroAll;
+        Pass := CODEGENERATIONPASS;
 
-Pass := CODEGENERATIONPASS;
+        Rewrite(OutFile);
+        if IOResult <> 0 then Error('Unable to open output file ' + ExeName);
+        InitScanner;
+        CompileProgram;
+        Close(OutFile);
 
-Rewrite(OutFile);
-
-if IOResult <> 0 then
-  Error('Unable to open output file ' + ExeName);
-
-InitScanner;
-CompileProgram;
-
-Close(OutFile);
-
-WriteLn(basename(ProgramName), ' -> Code size: ', CodeSize, ', Data size: ', VarDataOrigin + GlobalDataSize);
+        WriteLn(basename(ProgramName), ' -> Code size: ', CodeSize, ', Data size: ', VarDataOrigin + GlobalDataSize);
 end.
 

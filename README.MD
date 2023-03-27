@@ -5,6 +5,7 @@ This is modified XD Pascal for DOS.
 ## Summary
 XD Pascal is a small educational compiler for a subset of the Pascal language. A native x86 machine code generator directly emits COM executables for MS-DOS. The compiler supports VGA graphics, floating-point arithmetic, etc. 32-bit Pascal source is provi
 
+
 ded.
 
 ## Changes from original version
@@ -20,7 +21,7 @@ ded.
 * Source file inclusion facility
 * Single-precision floating-point arithmetic (using the x87 FPU)
 * VGA graphics support
-* Compiler source for both Windows (Delphi) and DOS (TMT Pascal)
+* Compiler source for both Windows and DOS (FreePascal)
 
 ## Detailed description
 ### Preamble
@@ -290,12 +291,14 @@ procedure OutTextXY(x, y, clr: Integer; const s: string)
 * `INSERR.PAS`   - Inertial navigation system error estimator. Uses `KALMAN.PAS` unit.
 * `PALETTE.PAS`  - Graphics palette usage demo.
 * `LIST.PAS`     - Linked list operations demo.
+* `LFN.PAS`      - Long file name demo.
 
 ## License
 
 Original work is licensed as public domain.
 
 This repository licensed with MIT No Attribution License.
-This is equivalent license (See LICENSE.TXT for details).
+
+(This is equivalent license, see LICENSE.TXT for details).
 
 
