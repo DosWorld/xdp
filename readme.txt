@@ -328,5 +328,5 @@ CLOCK.PAS    - Clock demo.
 INSERR.PAS   - Inertial navigation system error estimator. Uses KALMAN.PAS unit.
 PALETTE.PAS  - Graphics palette usage demo.
 LIST.PAS     - Linked list operations demo.
-
+LFN.PAS      - Long file name demo.
 
