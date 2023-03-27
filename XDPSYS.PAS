@@ -22,309 +22,249 @@ OTHER DEALINGS IN THE SOFTWARE.}
 // System library
 
 CONST
-  pi = 3.1415927;
-  
-  SEEKSTART = 0;  
-  SEEKCUR   = 1;  
-  SEEKEND   = 2;
+pi = 3.1415927;
+
+SEEKSTART = 0;  
+SEEKCUR   = 1;  
+SEEKEND   = 2;
 
 
 TYPE
-  LongInt = Integer;
-  
-  Single = Real;
-  
-  PChar = ^Char;
-  
-  TStream = record
-    Data: PChar;
-    Index: Integer;
-  end;
 
-  PStream = ^TStream;  
-  
-  TRegisters = record
-    AX, BX, CX, DX, DS, Flags: Integer;
-  end;  
+LongInt = Integer;
+Single = Real;
+PChar = ^Char;
 
+TStream = record
+        Data: PChar;
+        Index: Integer;
+end;
+PStream = ^TStream;  
 
+TRegisters = record
+        AX, BX, CX, DX, DI, SI, DS, Flags: Integer;
+end;  
 
-VAR
-  RandSeed: Integer;
-  IOError: Integer;
-  LastReadChar: Char;
-
-
-
+VAR     RandSeed: Integer;
+        IOError: Integer;
+        LastReadChar: Char;
 
 // System timer and keyboard state
 
 
 function Timer: Integer;
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := 0;
-Reg.CX := 0;
-Reg.DX := 0;
-Intr($1A, @Reg);
-Result := Reg.CX shl 16 + Reg.DX;
+        Reg.AX := 0;
+        Reg.CX := 0;
+        Reg.DX := 0;
+        Intr($1A, @Reg);
+        Result := Reg.CX shl 16 + Reg.DX;
 end;
-
-
-
-            
+          
 function KeyPressed: Boolean;
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $0B00;
-Intr($21, @Reg);
-Result := (Reg.AX and $FF) <> 0;
+        Reg.AX := $0B00;
+        Intr($21, @Reg);
+        Result := (Reg.AX and $FF) <> 0;
 end;
-
-
-
 
 // Mathematical routines
 
-
-
 procedure Randomize;
 begin
-RandSeed := Timer;
+        RandSeed := Timer;
 end;
-
-
-
 
 function Random: Real;
 begin
-RandSeed := 1975433173 * RandSeed;
-Result := 0.5 * (RandSeed / $7FFFFFFF + 1.0);
+        RandSeed := 1975433173 * RandSeed;
+        Result := 0.5 * (RandSeed / $7FFFFFFF + 1.0);
 end;
-
-
-
 
 function Min(x, y: Real): Real;
 begin
-if x < y then Result := x else Result := y;
+        if x < y then Result := x else Result := y;
 end;
-
-
-
 
 function IMin(x, y: Integer): Integer;
 begin
-if x < y then Result := x else Result := y;
+        if x < y then Result := x else Result := y;
 end;
-
-
-
-
 
 function Max(x, y: Real): Real;
 begin
-if x > y then Result := x else Result := y;
+        if x > y then Result := x else Result := y;
 end;
-
-
-
 
 function IMax(x, y: Integer): Integer;
 begin
-if x > y then Result := x else Result := y;
+        if x > y then Result := x else Result := y;
 end;
-
-
-
-
 
 // File and console I/O routines
 
-
-
 procedure ReadConsole(var Ch: Char);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $0100;
-Intr($21, @Reg);
-Ch := Char(Reg.AX and $FF);
+        Reg.AX := $0100;
+        Intr($21, @Reg);
+        Ch := Char(Reg.AX and $FF);
 end;
-
-
-
 
 procedure WriteConsole(Ch: Char);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $0200;
-Reg.DX := Integer(Ch);
-Intr($21, @Reg);
+        Reg.AX := $0200;
+        Reg.DX := Integer(Ch);
+        Intr($21, @Reg);
 end;
 
-
-
-
-procedure Rewrite(var F: Text; const Name: string);
-var
-  Reg: TRegisters;
+procedure ReWrite(var F: Text; const Name: string);
+var     Reg: TRegisters;
 begin
-Reg.AX := $3C00;
-Reg.CX := $0000;
-Reg.DX := Integer(@Name) and $FFFF;
-Reg.DS := Integer(@Name) shr 16;
-Intr($21, @Reg);
-F := Text(Reg.AX);
-if Reg.Flags and 1 = 1 then IOError := Reg.AX else IOError := 0;    // Error code
+        IOError := 0;
+
+        Reg.SI := Integer(@Name) and $FFFF;
+        Reg.DS := Integer(@Name) shr 16;
+        Reg.BX := $22;
+        Reg.DX := $12;
+        Reg.CX := 0;
+        Reg.DI := 0;
+        Reg.Flags := 1;
+        Reg.AX := $716C;
+        Intr($21, @Reg);
+        IF Reg.Flags and 1 <> 0 THEN BEGIN
+                Reg.AX := $3C00;
+                Reg.CX := $0000;
+                Reg.DX := Integer(@Name) and $FFFF;
+                Reg.DS := Integer(@Name) shr 16;
+                Intr($21, @Reg);
+        END;
+        IF Reg.Flags AND 1 <> 0 THEN IOError := Reg.AX ELSE F := Text(Reg.AX);
 end;
-
-
-
 
 procedure Reset(var F: Text; const Name: string);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $3D02;
-Reg.DX := Integer(@Name) and $FFFF;
-Reg.DS := Integer(@Name) shr 16;
-Intr($21, @Reg);
-F := Text(Reg.AX);
-if Reg.Flags and 1 = 1 then IOError := Reg.AX else IOError := 0;    // Error code
+        IOError := 0;
+
+        Reg.SI := Integer(@Name) and $FFFF;
+        Reg.DS := Integer(@Name) shr 16;
+        Reg.BX := $22;
+        Reg.DX := $1;
+        Reg.CX := 0;
+        Reg.DI := 0;
+        Reg.Flags := 1;
+        Reg.AX := $716C;
+        Intr($21, @Reg);
+        IF Reg.Flags and 1 <> 0 THEN BEGIN
+                Reg.AX := $3D02;
+                Reg.DX := Integer(@Name) and $FFFF;
+                Reg.DS := Integer(@Name) shr 16;
+                Intr($21, @Reg);
+        END;
+        IF Reg.Flags AND 1 <> 0 THEN IOError := Reg.AX ELSE F := Text(Reg.AX);
 end;
-
-
-
 
 procedure Close(F: Text);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $3E00;
-Reg.BX := Integer(F);
-Intr($21, @Reg);
+        IOError := 0;
+        Reg.AX := $3E00;
+        Reg.BX := Integer(F);
+        Intr($21, @Reg);
 end;
-
-
-
 
 procedure BlockRead(F: Text; Buf: PChar; Len: SmallInt; var LenRead: SmallInt);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $3F00;
-Reg.BX := Integer(F);
-Reg.CX := Len;
-Reg.DX := Integer(Buf) and $FFFF;
-Reg.DS := Integer(Buf) shr 16;
-Intr($21, @Reg);
-LenRead := Reg.AX;
+        IOError := 0;
+        Reg.AX := $3F00;
+        Reg.BX := Integer(F);
+        Reg.CX := Len;
+        Reg.DX := Integer(Buf) and $FFFF;
+        Reg.DS := Integer(Buf) shr 16;
+        Intr($21, @Reg);
+        LenRead := Reg.AX;
 end;
 
-
-
-  
 procedure BlockWrite(F: Text; Buf: PChar; Len: SmallInt);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $4000;
-Reg.BX := Integer(F);
-Reg.CX := Len;
-Reg.DX := Integer(Buf) and $FFFF;
-Reg.DS := Integer(Buf) shr 16;
-Intr($21, @Reg);
+        IOError := 0;
+        Reg.AX := $4000;
+        Reg.BX := Integer(F);
+        Reg.CX := Len;
+        Reg.DX := Integer(Buf) and $FFFF;
+        Reg.DS := Integer(Buf) shr 16;
+        Intr($21, @Reg);
 end;
-
-
-
 
 procedure DeleteFile(const Name: string);
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $4100;
-Reg.DX := Integer(@Name) and $FFFF;
-Reg.DS := Integer(@Name) shr 16;
-Intr($21, @Reg);
+        IOError := 0;
+        Reg.DI := Integer(@Name) and $FFFF;
+        Reg.DS := Integer(@Name) shr 16;
+        Reg.CX := 0;
+        Reg.SI := 0;
+        Reg.Flags := 1;
+        Reg.AX := $7141;
+        Intr($21, @Reg);
+        IF Reg.Flags and 1 <> 0 THEN BEGIN
+                Reg.AX := $4100;
+                Reg.DX := Integer(@Name) and $FFFF;
+                Reg.DS := Integer(@Name) shr 16;
+                Intr($21, @Reg);
+        END;
 end;
-
-
-
 
 function SeekFile(F: Text; Pos: Integer; Mode: ShortInt): Integer;
-var
-  Reg: TRegisters;
+var     Reg: TRegisters;
 begin
-Reg.AX := $4200 + Mode;
-Reg.BX := Integer(F);
-Reg.CX := Pos shr 16;
-Reg.DX := Pos and $FFFF;
-Intr($21, @Reg);
-Result :=  Reg.DX shl 16 + Reg.AX;
-if Reg.Flags and 1 = 1 then IOError := Reg.AX else IOError := 0;    // Error code
+        IOError := 0;
+        Reg.AX := $4200 + Mode;
+        Reg.BX := Integer(F);
+        Reg.CX := Pos shr 16;
+        Reg.DX := Pos and $FFFF;
+        Intr($21, @Reg);
+        Result :=  Reg.DX shl 16 + Reg.AX;
+        if Reg.Flags and 1 = 1 then IOError := Reg.AX;    // Error code
 end;
-
-
-
-
 
 procedure Seek(F: Text; Pos: Integer);
-var
-  NewPos: Integer;
+var     NewPos: Integer;
 begin
-NewPos := SeekFile(F, Pos, SEEKSTART);
-if NewPos <> Pos then IOError := 1 else IOError := 0;
+        NewPos := SeekFile(F, Pos, SEEKSTART);
+        if NewPos <> Pos then IOError := 1 else IOError := 0;
 end;
-
-
-
-
 
 function FilePos(F: Text): Integer;
 begin
-Result := SeekFile(F, 0, SEEKCUR);
+        Result := SeekFile(F, 0, SEEKCUR);
 end;
-
-
-
-
 
 function EOF(F: Text): Boolean;
-var
-  OldPos: Integer;
+var     OldPos: Integer;
 begin
-if Integer(F) = 0 then
-  Result := FALSE
-else
-  begin  
-  OldPos := SeekFile(F, 0, SEEKCUR);
-  Result := SeekFile(F, 0, SEEKEND) = OldPos;
-  OldPos := SeekFile(F, OldPos, SEEKSTART);
-  end;
+        if Integer(F) = 0 then Result := FALSE
+        else begin  
+                OldPos := SeekFile(F, 0, SEEKCUR);
+                Result := SeekFile(F, 0, SEEKEND) = OldPos;
+                OldPos := SeekFile(F, OldPos, SEEKSTART);
+        end;
 end;
-
-
-
-
 
 function IOResult: Integer;
 begin
-Result := IOError;
-IOError := 0;
+        Result := IOError;
+        IOError := 0;
 end;
 
-
-
-
-
 procedure WriteCh(F: Text; P: PStream; ch: Char);
-var
-  Dest: PChar;
+var     Dest: PChar;
 begin
 if P <> nil then             // String stream output
   begin                      

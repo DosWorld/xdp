@@ -1549,23 +1549,55 @@ end;// GenerateHalt
 
 procedure GenerateInterrupt(InterruptNumber: Byte);
 begin
+{
 Gen($5E);                                                               // pop si
 Gen($07);                                                               // pop es
-Gen($26); Gen($8B); Gen($44); Gen($10);                                 // mov ax, es:[si + 16]   ; ds
+Gen($26); Gen($8B); Gen($44); Gen($10);                                 // mov ax, es:[si + 24]   ; ds
 Gen($1E);                                                               // push ds
 Gen($8E); Gen($D8);                                                     // mov ds, ax
 Gen($26); Gen($8B); Gen($04);                                           // mov ax, es:[si]
 Gen($26); Gen($8B); Gen($5C); Gen($04);                                 // mov bx, es:[si + 4]
 Gen($26); Gen($8B); Gen($4C); Gen($08);                                 // mov cx, es:[si + 8]
 Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov dx, es:[si + 12]
+Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov di, es:[si + 16]
+Gen($26); Gen($8B); Gen($54); Gen($0C);                                 // mov si, es:[si + 20]
 Gen($CD); Gen(InterruptNumber);                                         // int InterruptNumber
 Gen($9C);                                                               // pushf
 Gen($26); Gen($89); Gen($04);                                           // mov es:[si], ax
 Gen($26); Gen($89); Gen($5C); Gen($04);                                 // mov es:[si + 4], bx
 Gen($26); Gen($89); Gen($4C); Gen($08);                                 // mov es:[si + 8], cx
 Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 12], dx
-Gen($26); Gen($8F); Gen($44); Gen($14);                                 // pop es:[si + 20]       ; flags
+Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 16], di
+Gen($26); Gen($89); Gen($54); Gen($0C);                                 // mov es:[si + 20], si
+Gen($26); Gen($8F); Gen($44); Gen($14);                                 // pop es:[si + 28]       ; flags
 Gen($1F);                                                               // pop ds
+}
+Gen($5E);       // pop     si
+Gen($07);       // pop     es
+Gen($1E);       // push    ds
+Gen($55);       // push    bp
+Gen($89); Gen($F5);     // mov     bp,si
+Gen($26); Gen($FF); Gen($76); Gen($1C); // push    word ptr es:[bp+1Ch]
+Gen($26); Gen($8B); Gen($46); Gen($18); // mov     ax,es:[bp+18h]
+Gen($8E); Gen($D8);     // mov     ds,ax
+Gen($26); Gen($8B); Gen($46); Gen($00); // mov     ax,es:[bp]
+Gen($26); Gen($8B); Gen($5E); Gen($04); // mov     bx,es:[bp+4]
+Gen($26); Gen($8B); Gen($4E); Gen($08); // mov     cx,es:[bp+8]
+Gen($26); Gen($8B); Gen($56); Gen($0C); // mov     dx,es:[bp+0Ch]
+Gen($26); Gen($8B); Gen($7E); Gen($10); // mov     di,es:[bp+10h]
+Gen($26); Gen($8B); Gen($76); Gen($14); // mov     si,es:[bp+14h]
+Gen($9D);       // popf 
+Gen($CD); Gen(InterruptNumber); // int InterruptNumber
+Gen($9C);       // pushf 
+Gen($26); Gen($89); Gen($46); Gen($00); // mov     es:[bp],ax
+Gen($26); Gen($89); Gen($5E); Gen($04); // mov     es:[bp+4],bx
+Gen($26); Gen($89); Gen($4E); Gen($08); // mov     es:[bp+8],cx
+Gen($26); Gen($89); Gen($56); Gen($0C); // mov     es:[bp+0Ch],dx
+Gen($26); Gen($89); Gen($7E); Gen($10); // mov     es:[bp+10h],di
+Gen($26); Gen($89); Gen($76); Gen($14); // mov     es:[bp+14h],si
+Gen($26); Gen($8F); Gen($46); Gen($1C); // pop     word ptr es:[bp+1Ch]
+Gen($5D);       // pop     bp
+Gen($1F);       // pop     ds
 end;// GenerateInterrupt
 
 
