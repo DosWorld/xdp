@@ -640,7 +640,7 @@ BEGIN
  
         IF x1 = x2 THEN FOR y := yMin TO yMax DO PutPixel(x1, y, clr)
         ELSE IF y1 = y2 THEN FOR x := xMin TO xMax DO PutPixel(x, y1, clr)
-        ELSE IF abs(yMax - yMin) < abs(xMax - xMin) THEN BEGIN
+        ELSE IF Abs(yMax - yMin) < Abs(xMax - xMin) THEN BEGIN
                 FOR x := xMin TO xMax DO BEGIN
                         y := y1 + (y2 - y1) * (x - x1) DIV (x2 - x1); 
                         PutPixel(x, y, clr);
@@ -651,20 +651,34 @@ BEGIN
         END
 END;
 
-PROCEDURE Circle(x, y, r, clr: Integer);
-VAR     t, dt  : Real;
-        dx, dy : Integer;
+PROCEDURE Circle(xc, yc, r, clr: Integer);
+VAR     x, y, d : INTEGER;
 BEGIN
-        t := 0;  dt := 0.5 / r;
-
-        WHILE t < Pi / 2 DO BEGIN
-                dx := Round(r * cos(t));
-                dy := Round(r * sin(t));
-                PutPixel(x + dx, y + dy, clr);
-                PutPixel(x - dx, y + dy, clr);
-                PutPixel(x - dx, y - dy, clr);
-                PutPixel(x + dx, y - dy, clr);
-                t := t + dt;
+        x := 0;
+        y := r;
+        d := 3 - 2 * r;
+        putpixel(xc + x, yc + y, clr);
+        putpixel(xc - x, yc + y, clr);
+        putpixel(xc + x, yc - y, clr);
+        putpixel(xc - x, yc - y, clr);
+        putpixel(xc + y, yc + x, clr);
+        putpixel(xc - y, yc + x, clr);
+        putpixel(xc + y, yc - x, clr);
+        putpixel(xc - y, yc - x, clr);
+        WHILE y >= x DO BEGIN
+                Inc(x);
+                IF d > 0 THEN BEGIN
+                        Dec(y);
+                        d := d + 4 * (x - y) + 10;
+                END ELSE d := d + 4 * x + 6;
+                putpixel(xc + x, yc + y, clr);
+                putpixel(xc - x, yc + y, clr);
+                putpixel(xc + x, yc - y, clr);
+                putpixel(xc - x, yc - y, clr);
+                putpixel(xc + y, yc + x, clr);
+                putpixel(xc - y, yc + x, clr);
+                putpixel(xc + y, yc - x, clr);
+                putpixel(xc - y, yc - x, clr);
         END;
 END;
 
