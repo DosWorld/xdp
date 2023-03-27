@@ -3,10 +3,10 @@
 This is modified XD Pascal for DOS.
 
 ## Summary
-XD Pascal is a small educational compiler for a subset of the Pascal language. A native x86 machine code generator directly emits COM executables for MS-DOS. The compiler supports VGA graphics, floating-point arithmetic, etc. 32-bit Pascal source is provi
-
-
-ded.
+XD Pascal is a small educational compiler for a subset of the Pascal language.
+A native x86 machine code generator directly emits COM executables for MS-DOS.
+The compiler supports VGA graphics, floating-point arithmetic, etc.
+32-bit Pascal source is provided.
 
 ## Changes from original version
 * Recompiled with FPC
