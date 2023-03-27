@@ -31,9 +31,7 @@ II. USAGE
 
 Type in the command prompt:
 
-xdp <file.pas> [/n]
-
-Option: /n - disable code optimization.
+xdp <file.pas>
 
 The source file should be specified with its extension (.pas).
  
