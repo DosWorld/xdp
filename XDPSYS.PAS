@@ -395,11 +395,14 @@ BEGIN
         END ELSE IF Integer(F) = 0 THEN BEGIN
                 // Console input
                 ReadConsole(ch);
-                IF ch = #13 THEN WriteConsole(#10);
+                IF ch = #13 THEN BEGIN
+                        WriteConsole(#10);
+                        ch := #10;
+                END;
         END  ELSE BEGIN
                 // File input
                 BlockRead(F, @ch, 1, Len);
-                IF ch = #10 THEN BlockRead(F, @ch, 1, Len);
+                IF ch = #13 THEN BlockRead(F, @ch, 1, Len);
                 IF Len <> 1 THEN ch := #0;
         END;
         LastReadChar := ch; // Required by ReadNewLine
@@ -498,10 +501,8 @@ BEGIN
         ReadCh(F, P, Ch);
 
         WHILE Ch <> #10 DO BEGIN
-                IF Ch <> #13 THEN BEGIN
-                        s[i] := Ch;
-                        Inc(i);
-                END;
+                s[i] := Ch;
+                Inc(i);
                 ReadCh(F, P, Ch);
         END;
 

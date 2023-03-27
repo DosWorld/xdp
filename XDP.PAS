@@ -511,43 +511,41 @@ end;
 
 function GetSpelling(var Tok: TToken): TString;
 begin
-if Tok.Kind = 0 then
-  Result := 'no token'
-else if Tok.Kind <= NUMDELIMITERS then
-  case Tok.Kind of
-    OPARTOK:        Result := '(';
-    CPARTOK:        Result := ')';
-    MULTOK:         Result := '*';
-    PLUSTOK:        Result := '+';
-    COMMATOK:       Result := ',';
-    MINUSTOK:       Result := '-';
-    PERIODTOK:      Result := '.';
-    RANGETOK:       Result := '..';
-    DIVTOK:         Result := '/';
-    COLONTOK:       Result := ':';
-    ASSIGNTOK:      Result := ':=';
-    SEMICOLONTOK:   Result := ';';
-    LTTOK:          Result := '<';
-    LETOK:          Result := '<=';
-    NETOK:          Result := '<>';
-    EQTOK:          Result := '=';
-    GTTOK:          Result := '>';
-    GETOK:          Result := '>=';
-    ADDRESSTOK:     Result := '@';
-    OBRACKETTOK:    Result := '[';
-    CBRACKETTOK:    Result := ']';
-    DEREFERENCETOK: Result := '^';
-  end // case
-else if Tok.Kind <= NUMDELIMITERS + NUMKEYWORDS then
-  Result := Keyword[Tok.Kind - NUMDELIMITERS]
-else if Tok.Kind = IDENTTOK then
-  Result := 'identifier'
-else if (Tok.Kind = INTNUMBERTOK) or (Tok.Kind = FRACNUMBERTOK) then
-  Result := 'number'
-else if (Tok.Kind = CHARLITERALTOK) or (Tok.Kind = STRINGLITERALTOK) then
-  Result := 'literal'
-else
-  Result := 'unknown token';
+        Result := 'unknown token';
+        if Tok.Kind = 0 then Result := 'no token'
+        else if Tok.Kind <= NUMDELIMITERS then
+                case Tok.Kind of
+                OPARTOK:        Result := '(';
+                CPARTOK:        Result := ')';
+                MULTOK:         Result := '*';
+                PLUSTOK:        Result := '+';
+                COMMATOK:       Result := ',';
+                MINUSTOK:       Result := '-';
+                PERIODTOK:      Result := '.';
+                RANGETOK:       Result := '..';
+                DIVTOK:         Result := '/';
+                COLONTOK:       Result := ':';
+                ASSIGNTOK:      Result := ':=';
+                SEMICOLONTOK:   Result := ';';
+                LTTOK:          Result := '<';
+                LETOK:          Result := '<=';
+                NETOK:          Result := '<>';
+                EQTOK:          Result := '=';
+                GTTOK:          Result := '>';
+                GETOK:          Result := '>=';
+                ADDRESSTOK:     Result := '@';
+                OBRACKETTOK:    Result := '[';
+                CBRACKETTOK:    Result := ']';
+                DEREFERENCETOK: Result := '^';
+                end // case
+        else if Tok.Kind <= NUMDELIMITERS + NUMKEYWORDS then
+                Result := Keyword[Tok.Kind - NUMDELIMITERS]
+        else if Tok.Kind = IDENTTOK then
+                Result := 'identifier'
+        else if (Tok.Kind = INTNUMBERTOK) or (Tok.Kind = FRACNUMBERTOK) then
+                Result := 'number'
+        else if (Tok.Kind = CHARLITERALTOK) or (Tok.Kind = STRINGLITERALTOK) then
+                Result := 'literal';
 end;
 
 
@@ -2299,8 +2297,7 @@ end;
 
 
 procedure GenerateProgramEpilog;
-var
-  i, StoredCodeSize, CodeSegmentSize: Integer;
+var     CodeSegmentSize: Integer;
 begin
         GenerateHalt(0);
 // End of pure code
@@ -2313,7 +2310,6 @@ begin
         GenAt(2, (CodeSegmentSize shr 8) and $ff);
 
 // Build static string data table at the end of the executable file (i.e. at the beginning of data segment)
-        StoredCodeSize := CodeSize;
         while (NumStaticStrChars and $0f) <> 0 do begin
                 StaticStringData[NumStaticStrChars] := #0;
                 Inc(NumStaticStrChars);
@@ -4432,6 +4428,7 @@ begin
         CodePosStackTop := 0;
         NumStaticStrChars := 0;
         GlobalDataSize := 0;
+        WriteExeRlocsCount := 0;
         FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
         ExeHeader.sign := MZ_SIGN;
         ExeHeader.sp := $FFFE;
@@ -4453,7 +4450,6 @@ begin
 end;  
 
 var     BlockIndex: Integer;
-        OptimizationDisabled: Boolean;
 
 begin
         if ParamCount < 1 then begin
@@ -4465,12 +4461,7 @@ begin
                 Halt(1);
         end;
 
-        if ParamCount > 1 then
-                OptimizationDisabled := (ParamStr(2) = '/n') or (ParamStr(2) = '/N')
-        else
-                OptimizationDisabled := FALSE;
-
-        syspath := getpathname(ParamStr(0));
+        syspath := GetPathName(ParamStr(0));
 
         ProgramName := ParamStr(1);
 
