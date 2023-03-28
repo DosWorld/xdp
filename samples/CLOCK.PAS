@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation

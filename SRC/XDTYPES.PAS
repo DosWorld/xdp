@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
@@ -242,15 +242,6 @@ TConst = record
         case Kind : Byte of
         INTNUMBERTOK:  (Value: LongInt);
         FRACNUMBERTOK: (FracValue: Single);
-end;
-
-TToken = record
-        Kind       : Byte;
-        Name       : TName;
-        Value      : LongInt;
-        FracValue  : Single;
-        StrAddress : Integer;
-        StrLength  : Integer;
 end;
 
 PIdentifier = ^TIdentifier;

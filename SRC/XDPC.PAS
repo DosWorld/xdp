@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
@@ -22,7 +22,7 @@ OTHER DEALINGS IN THE SOFTWARE.}
 {$I-,R-,S-}
 program XDPC;
 
-USES xdtypes, xdglob, xdutils, xdscan, xdpars, xdopt;
+USES xdtypes, xdglob, xdutils, xdscan, xdpars, xdopt, xdlink;
 
 CONST
 VERSION = '0.7.13';
@@ -31,9 +31,9 @@ VAR     BlockIndex: Integer;
 
 BEGIN
         IF ParamCount <> 1 THEN BEGIN
-                WriteLn('Copyright 2010 Vasiliy Tereshkov');
+                WriteLn('Copyright 2010 Vasiliy Tereshkov, vtereshkov@mail.ru');
                 WriteLn('Copyright 2023 DosWorld');
-                WriteLn('XD Pascal compiler Version ', VERSION, '/dw');
+                WriteLn('XD Pascal x86 16-bit Compiler, Version ', VERSION, '/dw');
                 WriteLn;
                 WriteLn('Usage:');
                 WriteLn(#9, BaseName(ParamStr(0)),' file.pas');
@@ -43,9 +43,6 @@ BEGIN
         syspath := GetPathName(ParamStr(0));
 
         ProgramName := ParamStr(1);
-
-        ChangeExt(ProgramName, 'exe', ExeName);
-        Assign(OutFile, ExeName);
 
         FOR BlockIndex := 1 TO MAXBLOCKS DO BlockIsNotDead[BlockIndex] := FALSE;
         
@@ -70,15 +67,8 @@ BEGIN
         ZeroAll;
         Pass := CODEGENERATIONPASS;
 
-        Rewrite(OutFile);
-        IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
         InitScanner;
         CompileProgram;
-        BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
-        BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRlocsCount);
-        BlockWrite(OutFile, StaticCodeData, CodeSize);
-        BlockWrite(OutFile, StaticStringData, NumStaticStrChars);
-
-        Close(OutFile);
+        Link(ProgramName);
 END.
 

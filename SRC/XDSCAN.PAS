@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
@@ -27,6 +27,20 @@ INTERFACE
 
 USES xdtypes;
 
+TYPE
+TToken = RECORD
+        Kind       : Byte;
+        Name       : TName;
+        Value      : LongInt;
+        FracValue  : Single;
+        StrAddress : Integer;
+        StrLength  : Integer;
+END;
+
+VAR
+Tok           : TToken;
+EndOfProgram  : Boolean;
+
 procedure InitScanner;
 procedure EnterIncludedFile(const Name: TString);
 procedure LeaveIncludedFile(var ch: Char);
@@ -37,6 +51,9 @@ procedure EatTok(ExpectedTokKind: Byte);
 IMPLEMENTATION
 
 USES xdglob, xdutils;
+
+VAR
+ch, ch2: Char;
 
 procedure InitScanner;
 begin

@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
@@ -24,7 +24,7 @@ UNIT xdutils;
 { ----- GENERAL ROUTINES ----- }
 INTERFACE
 
-USES xdtypes;
+USES xdtypes, xdscan;
 
 FUNCTION BaseName(s : STRING):STRING;
 FUNCTION GetPathName(s : STRING):STRING;

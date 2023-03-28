@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov
+Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
 Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
@@ -76,21 +76,16 @@ BlockStack: array [1..MAXNESTING] of Byte;
 CallGraph: array [0..MAXBLOCKS - 1, 0..MAXBLOCKS div 8 - 1] of Byte;    // Rows are callers, columns are callees
 BlockIsNotDead: array [1..MAXBLOCKS] of Boolean;
 
-Tok: TToken;
 
 NumTypes, VarDataOrigin, NumBlocks, BlockStackTop,
 CodePosStackTop,
 Pass, UnitStackTop, Line: Integer;
 CodeSize, NumStaticStrChars, GlobalDataSize : LongInt;
 
-ProgramName, ExeName: TString;
+ProgramName : TString;
 
 InFile: file of Char;
-OutFile: file of Byte;
 
-EndOfProgram: Boolean;
-
-ch, ch2: Char;
 syspath : string;
 
 procedure ZeroAll;
@@ -206,7 +201,6 @@ begin
         WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
         DisposeAll;
         Close(InFile);
-        Close(OutFile);
         Halt(1);
 end;
 

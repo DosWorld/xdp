@@ -1,6 +1,6 @@
 { MIT No Attribution
 
-Copyright 2010 Vasiliy Tereshkov vtereshkov@mail.ru
+Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -18,44 +18,33 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.}
+{$I-,R-,S-}
+UNIT xdlink;
 
-// Cannabola plot program
+INTERFACE
 
-program Cannabis;
+USES xdtypes;
 
-const
-  dt0 = 0.003;
-  scale = 120;
+PROCEDURE Link(pname : TString);
 
+IMPLEMENTATION
 
-var
-  r, rold, rdot, t, dt, x, y: Real;
+USES xdglob, xdutils;
 
+PROCEDURE Link(pname : TString);
+VAR     ExeName : TString;
+        OutFile : File;
+BEGIN
+        ChangeExt(pname, 'exe', ExeName);
+        Assign(OutFile, ExeName);
+        Rewrite(OutFile, 1);
+        IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
+        BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
+        BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRlocsCount);
+        BlockWrite(OutFile, StaticCodeData, CodeSize);
+        BlockWrite(OutFile, StaticStringData, NumStaticStrChars);
+        Close(OutFile);
+END;
 
-begin
-SetScreenMode($10);   // 640 x 350 pixels, 16 colors
+END.
 
-t    := 0;
-dt   := dt0;
-rold := 0;
-
-while t <= 2 * pi do
-  begin
-  r := (1 + sin(t)) * (1 + 0.9 * cos(8 * t)) * (1 + 0.1 * cos(24 * t)) * (0.5 + 0.05 * cos(200 * t));
-
-  x := r * cos(t);
-  y := r * sin(t);
-
-  rdot := abs(r - rold) / dt;
-
-  dt := dt0 / (1 + rdot);
-
-  PutPixel(320 + Round(scale * x), 290 - Round(scale * y), 10);
-  
-  t := t + dt;
-  rold := r;
-  end;
-
-repeat until KeyPressed;
-SetScreenMode($03);
-end.
