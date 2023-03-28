@@ -42,69 +42,48 @@ procedure CompileType(var DataType: Byte); forward;
 
 
 procedure CompileConstFactor(var ConstVal: TConst; var ConstValType: Byte);
-var
-  IdentIndex: Integer;
+var     PIdent : PIdentifier;
 begin
-case Tok.Kind of
-  IDENTTOK:
-    begin
-    IdentIndex := GetIdent(Tok.Name);
-    if Ident[IdentIndex].Kind <> CONSTANT then
-      Error('Constant expected but ' + Ident[IdentIndex].Name + ' found')
-    else
-      begin
-      ConstValType := Ident[IdentIndex].DataType;
-      if Types[ConstValType].TypeKind = REALTYPE then
-        ConstVal.FracValue := Ident[IdentIndex].FracValue
-      else
-        ConstVal.Value := Ident[IdentIndex].Value;
-      NextTok;
-      end;
-    end;
-
-
-  INTNUMBERTOK:
-    begin
-    ConstVal.Value := Tok.Value;
-    ConstValType := INTEGERTYPEINDEX;
-    NextTok;
-    end;
-
-
-  FRACNUMBERTOK:
-    begin
-    ConstVal.FracValue := Tok.FracValue;
-    ConstValType := REALTYPEINDEX;
-    NextTok;
-    end;
-
-
-  CHARLITERALTOK:
-    begin
-    ConstVal.Value := Tok.Value;
-    ConstValType := CHARTYPEINDEX;
-    NextTok;
-    end;
-
-
-  OPARTOK:       // Expression in parentheses expected
-    begin
-    NextTok;
-    CompileConstExpression(ConstVal, ConstValType);
-    EatTok(CPARTOK);
-    end;
-
-
-  NOTTOK:
-    begin
-    CompileConstFactor(ConstVal, ConstValType);
-    ConstVal.Value := not ConstVal.Value;
-    end; 
-
-else
-  Error('Expression expected but ' + GetSpelling(Tok) + ' found');
-end;// case
-
+        case Tok.Kind of
+        IDENTTOK: begin
+                PIdent := FindIdent(Tok.Name);
+                if PIdent^.Kind <> CONSTANT then
+                        Error('Constant expected but ' + PIdent^.Name + ' found')
+                else begin
+                        ConstValType := PIdent^.DataType;
+                        if Types[ConstValType].TypeKind = REALTYPE then
+                                ConstVal.FracValue := PIdent^.FracValue
+                        else ConstVal.Value := PIdent^.Value;
+                        NextTok;
+                        end;
+        end;
+        INTNUMBERTOK: begin
+                ConstVal.Value := Tok.Value;
+                ConstValType := INTEGERTYPEINDEX;
+                NextTok;
+        end;
+        FRACNUMBERTOK: begin
+                ConstVal.FracValue := Tok.FracValue;
+                ConstValType := REALTYPEINDEX;
+                NextTok;
+        end;
+        CHARLITERALTOK: begin
+                ConstVal.Value := Tok.Value;
+                ConstValType := CHARTYPEINDEX;
+                NextTok;
+        end;
+        OPARTOK: begin
+                // Expression in parentheses expected
+                NextTok;
+                CompileConstExpression(ConstVal, ConstValType);
+                EatTok(CPARTOK);
+        end;
+        NOTTOK: begin
+                CompileConstFactor(ConstVal, ConstValType);
+                ConstVal.Value := not ConstVal.Value;
+        end; 
+        else Error('Expression expected but ' + GetSpelling(Tok) + ' found');
+        end;// case
 end;// CompileConstFactor
 
 
@@ -117,37 +96,32 @@ var
   RightConstValType: Byte;
 
 begin
-CompileConstFactor(ConstVal, ConstValType);
+        CompileConstFactor(ConstVal, ConstValType);
+        while Tok.Kind in [MULTOK, DIVTOK, IDIVTOK, MODTOK, SHLTOK, SHRTOK, ANDTOK] do begin
+                OpTok := Tok;
+                NextTok;
+                CompileConstFactor(RightConstVal, RightConstValType);
 
-while Tok.Kind in [MULTOK, DIVTOK, IDIVTOK, MODTOK, SHLTOK, SHRTOK, ANDTOK] do
-  begin
-  OpTok := Tok;
-  NextTok;
-  CompileConstFactor(RightConstVal, RightConstValType);
+                // Try to convert integer to real
+                if ConversionIsPossible(ConstValType, RightConstValType) then begin
+                        ConstVal.FracValue := ConstVal.Value;
+                        ConstValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightConstValType, ConstValType) then begin
+                        RightConstVal.FracValue := RightConstVal.Value;
+                        RightConstValType := REALTYPEINDEX;
+                end;
 
-  // Try to convert integer to real
-  if ConversionIsPossible(ConstValType, RightConstValType) then
-    begin
-    ConstVal.FracValue := ConstVal.Value;
-    ConstValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightConstValType, ConstValType) then
-    begin
-    RightConstVal.FracValue := RightConstVal.Value;
-    RightConstValType := REALTYPEINDEX;
-    end;
+                // Special case: real division of two integers
+                if (OpTok.Kind = DIVTOK) and ConversionIsPossible(ConstValType, REALTYPEINDEX) and ConversionIsPossible(RightConstValType, REALTYPEINDEX) then begin
+                        ConstVal.FracValue := ConstVal.Value;
+                        RightConstVal.FracValue := RightConstVal.Value;
+                        ConstValType := REALTYPEINDEX;
+                        RightConstValType := REALTYPEINDEX;
+                end;
 
-  // Special case: real division of two integers
-  if (OpTok.Kind = DIVTOK) and ConversionIsPossible(ConstValType, REALTYPEINDEX) and ConversionIsPossible(RightConstValType, REALTYPEINDEX) then
-    begin
-    ConstVal.FracValue := ConstVal.Value;
-    RightConstVal.FracValue := RightConstVal.Value;
-    ConstValType := REALTYPEINDEX;
-    RightConstValType := REALTYPEINDEX;
-    end;
-
-  ConstValType := GetCompatibleType(ConstValType, RightConstValType);
-  CheckOperator(OpTok.Kind, ConstValType);
+                ConstValType := GetCompatibleType(ConstValType, RightConstValType);
+                CheckOperator(OpTok.Kind, ConstValType);
 
   if Types[ConstValType].TypeKind = REALTYPE then        // Real constants
     case OpTok.Kind of
@@ -307,7 +281,7 @@ var
   DesignatorType, ExpressionType, ActualParamType: Byte;
   InterruptNumber, ErrorCode: TConst;
   ExitLoop: Boolean;
-  LibProcIdentIndex: Integer;
+  LibProcIdent: PIdentifier;
   IsFirstParam, FileSpecified: Boolean;
 begin
 NextTok;
@@ -354,26 +328,26 @@ case proc of
           end
         else                                                        // Any output expression
           begin
-          LibProcIdentIndex := 0;
+          LibProcIdent := nil;
 
           if (Types[DesignatorType].TypeKind in IntegerTypes) or
             ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
              (Types[Types[DesignatorType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdentIndex := GetIdent('READINT')                 // Integer or boolean argument
+                LibProcIdent := FindIdent('READINT')                 // Integer or boolean argument
           else if (Types[DesignatorType].TypeKind = CHARTYPE) or
             ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
              (Types[Types[DesignatorType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdentIndex := GetIdent('READCH')                  // Character argument
+                LibProcIdent := FindIdent('READCH')                  // Character argument
           else if Types[DesignatorType].TypeKind = REALTYPE then
-                LibProcIdentIndex := GetIdent('READREAL')                // Real argument
+                LibProcIdent := FindIdent('READREAL')                // Real argument
           else if (Types[DesignatorType].TypeKind = ARRAYTYPE) and (Types[DesignatorType].BaseType = CHARTYPEINDEX) then
-                LibProcIdentIndex := GetIdent('READSTRING')              // String argument
+                LibProcIdent := FindIdent('READSTRING')              // String argument
           else
             Error('Incompatible types');
 
           // Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator
-          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[LibProcIdentIndex].ProcAsBlock);
-          GenerateCall(Ident[LibProcIdentIndex].Value, BlockStackTop - Ident[LibProcIdentIndex].NestingLevel);
+          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+          GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
           end; // else
 
         IsFirstParam := FALSE;
@@ -388,9 +362,8 @@ case proc of
       end; // if OPARTOR
       
     // Add CR+LF, if necessary
-    if proc = READLNPROC then
-      begin
-      LibProcIdentIndex := GetIdent('READNEWLINE');
+    if proc = READLNPROC then begin
+      LibProcIdent := FindIdent('READNEWLINE');
       
       // 1st argument - file handle
       if FileSpecified then
@@ -401,8 +374,8 @@ case proc of
       // 2nd argument - string stream handle
       PushConst(0);
 
-      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[LibProcIdentIndex].ProcAsBlock);
-      GenerateCall(Ident[LibProcIdentIndex].Value, BlockStackTop - Ident[LibProcIdentIndex].NestingLevel);
+      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+      GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
       end;
 
     end;// READPROC, READLNPROC
@@ -438,32 +411,32 @@ case proc of
           end
         else                                                        // Any output expression
           begin
-          LibProcIdentIndex := 0;
+          LibProcIdent := nil;
           
           if (Types[ExpressionType].TypeKind in IntegerTypes) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdentIndex := GetIdent('WRITEINT')                 // Integer or boolean argument
+                LibProcIdent := FindIdent('WRITEINT')                 // Integer or boolean argument
           else if (Types[ExpressionType].TypeKind = BOOLEANTYPE) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind = BOOLEANTYPE)) then
-                LibProcIdentIndex := GetIdent('WRITEBOOLEAN')             // Boolean argument
+                LibProcIdent := FindIdent('WRITEBOOLEAN')             // Boolean argument
           else if (Types[ExpressionType].TypeKind = CHARTYPE) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdentIndex := GetIdent('WRITECH')                  // Character argument
+                LibProcIdent := FindIdent('WRITECH')                  // Character argument
           else if Types[ExpressionType].TypeKind = REALTYPE then
-                LibProcIdentIndex := GetIdent('WRITEREAL')                // Real argument
+                LibProcIdent := FindIdent('WRITEREAL')                // Real argument
           else if Types[ExpressionType].TypeKind = POINTERTYPE then
-                LibProcIdentIndex := GetIdent('WRITEPOINTER')             // Pointer argument
+                LibProcIdent := FindIdent('WRITEPOINTER')             // Pointer argument
           else if (Types[ExpressionType].TypeKind = ARRAYTYPE) and (Types[ExpressionType].BaseType = CHARTYPEINDEX) then
-                LibProcIdentIndex := GetIdent('WRITESTRING')              // String argument
+                LibProcIdent := FindIdent('WRITESTRING')              // String argument
           else
             Error('Incompatible types');
 
           // Call the specific output subroutine. Interface: FileHandle; StreamHandle; Expression
-          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[LibProcIdentIndex].ProcAsBlock);
-          GenerateCall(Ident[LibProcIdentIndex].Value, BlockStackTop - Ident[LibProcIdentIndex].NestingLevel);
+          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+          GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
           end; // else
 
         IsFirstParam := FALSE;
@@ -480,7 +453,7 @@ case proc of
     // Add CR+LF, if necessary
     if proc = WRITELNPROC then
       begin
-      LibProcIdentIndex := GetIdent('WRITENEWLINE');
+      LibProcIdent := FindIdent('WRITENEWLINE');
       
       // 1st argument - file handle
       if FileSpecified then
@@ -491,8 +464,8 @@ case proc of
       // 2nd argument - string stream handle
       PushConst(0);
 
-      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[LibProcIdentIndex].ProcAsBlock);
-      GenerateCall(Ident[LibProcIdentIndex].Value, BlockStackTop - Ident[LibProcIdentIndex].NestingLevel);
+      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+      GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
       end;
 
     end;// WRITEPROC, WRITELNPROC
@@ -556,89 +529,78 @@ end;// CompilePredefinedProc
 
 procedure CompilePredefinedFunc(func: Byte; var ValType: Byte);
 var
-  IdentIndex: Integer;
+  PIdent : PIdentifier;
 begin
-NextTok;
-EatTok(OPARTOK);
+        NextTok;
+        EatTok(OPARTOK);
 
-case func of
-  SIZEOFFUNC:
-    begin
-    AssertIdent;
-    IdentIndex := GetIdent(Tok.Name);
-    if Ident[IdentIndex].Kind = USERTYPE then begin
-      NextTok;
-      PushConst(TypeSize(Ident[IdentIndex].DataType));
-    end else begin
-      CompileDesignator(ValType);
-      SaveStackTop;                        // Save result to EDX
-      PushConst(TypeSize(ValType));
-      end;
-    ValType := INTEGERTYPEINDEX;
-    end;
-
-  ROUNDFUNC, TRUNCFUNC: begin
-    CompileExpression(ValType);
-
-    // Try to convert integer to real
-    if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
-      GenerateFloat(0);
-      ValType := REALTYPEINDEX;
-      end;
-
-    GetCompatibleType(ValType, REALTYPEINDEX);
-    GenerateRound(func = TRUNCFUNC);
-    ValType := INTEGERTYPEINDEX;
-    end;
-
-  ORDFUNC: begin
-    CompileExpression(ValType);
-    if not (Types[ValType].TypeKind in OrdinalTypes) then Error('Ordinal type expected');
-    ValType := INTEGERTYPEINDEX;
-    end;
-
-  CHRFUNC: begin
-    CompileExpression(ValType);
-    GetCompatibleType(ValType, INTEGERTYPEINDEX);
-    ValType := CHARTYPEINDEX;
-    end;
-
-  PREDFUNC, SUCCFUNC: begin
-    CompileExpression(ValType);
-    if not (Types[ValType].TypeKind in OrdinalTypes) then
-      Error('Ordinal type expected');
-    if func = SUCCFUNC then PushConst(1)
-    else PushConst(-1);
-    GenerateBinaryOperator(PLUSTOK, INTEGERTYPEINDEX);
-    end;
-
-  ABSFUNC, SQRFUNC, SINFUNC, COSFUNC, ARCTANFUNC, EXPFUNC, LNFUNC, SQRTFUNC:
-    begin
-    CompileExpression(ValType);
-    if func in [ABSFUNC, SQRFUNC] then begin
-    // Abs and Sqr accept real or integer parameters
-      if not ((Types[ValType].TypeKind in (IntegerTypes + [REALTYPE])) or
-             ((Types[ValType].TypeKind = SUBRANGETYPE) and
-              (Types[Types[ValType].HostType].TypeKind in IntegerTypes))) then
-        Error('Numeric type expected')
-      end
-    else
-      begin
-      
-      // Try to convert integer to real
-      if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
-        GenerateFloat(0);
-        ValType := REALTYPEINDEX;
+        case func of
+        SIZEOFFUNC: begin
+                AssertIdent;
+                PIdent := FindIdent(Tok.Name);
+                if PIdent^.Kind = USERTYPE then begin
+                        NextTok;
+                        PushConst(TypeSize(PIdent^.DataType));
+                end else begin
+                        CompileDesignator(ValType);
+                        SaveStackTop;                        // Save result to EDX
+                        PushConst(TypeSize(ValType));
+                end;
+                ValType := INTEGERTYPEINDEX;
         end;
+        ROUNDFUNC, TRUNCFUNC: begin
+                CompileExpression(ValType);
 
-      GetCompatibleType(ValType, REALTYPEINDEX);
-      end;
+                // Try to convert integer to real
+                if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
+                        GenerateFloat(0);
+                        ValType := REALTYPEINDEX;
+                end;
 
-    GenerateMathFunction(func, ValType);
-    end;
-end;// case
+                GetCompatibleType(ValType, REALTYPEINDEX);
+                GenerateRound(func = TRUNCFUNC);
+                ValType := INTEGERTYPEINDEX;
+        end;
+        ORDFUNC: begin
+                CompileExpression(ValType);
+                if not (Types[ValType].TypeKind in OrdinalTypes) then Error('Ordinal type expected');
+                ValType := INTEGERTYPEINDEX;
+        end;
+        CHRFUNC: begin
+                CompileExpression(ValType);
+                GetCompatibleType(ValType, INTEGERTYPEINDEX);
+                ValType := CHARTYPEINDEX;
+        end;
+        PREDFUNC, SUCCFUNC: begin
+                CompileExpression(ValType);
+                if not (Types[ValType].TypeKind in OrdinalTypes) then
+                        Error('Ordinal type expected');
+                if func = SUCCFUNC then PushConst(1)
+                else PushConst(-1);
+                GenerateBinaryOperator(PLUSTOK, INTEGERTYPEINDEX);
+        end;
+        ABSFUNC, SQRFUNC, SINFUNC, COSFUNC, ARCTANFUNC, EXPFUNC, LNFUNC, SQRTFUNC: begin
+                CompileExpression(ValType);
+                if func in [ABSFUNC, SQRFUNC] then begin
+                        // Abs and Sqr accept real or integer parameters
+                        if not ((Types[ValType].TypeKind in (IntegerTypes + [REALTYPE])) or
+                        ((Types[ValType].TypeKind = SUBRANGETYPE) and
+                        (Types[Types[ValType].HostType].TypeKind in IntegerTypes))) then
+                        Error('Numeric type expected')
+                end else begin
+                        // Try to convert integer to real
+                        if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
+                                GenerateFloat(0);
+                                ValType := REALTYPEINDEX;
+                        end;
 
-EatTok(CPARTOK);
+                        GetCompatibleType(ValType, REALTYPEINDEX);
+                end;
+
+                GenerateMathFunction(func, ValType);
+        end;
+        end;// case
+        EatTok(CPARTOK);
 end;// CompilePredefinedFunc
 
 
@@ -647,25 +609,26 @@ end;// CompilePredefinedFunc
 
 procedure CompileDesignator(var ValType: Byte);
 var
-  IdentIndex, FieldIndex: Integer;
+  FieldIndex: Integer;
+  PIdent : PIdentifier;
   ArrayIndexType: Byte;
   IsRefParam: Boolean;
 begin
-AssertIdent;
+        AssertIdent;
 
-IdentIndex := GetIdent(Tok.Name);
+        PIdent := FindIdent(Tok.Name);
 
-if Ident[IdentIndex].Kind <> VARIABLE then
-  Error('Variable expected but ' + Tok.Name + ' found');
+        if PIdent^.Kind <> VARIABLE then
+                Error('Variable expected but ' + Tok.Name + ' found');
 
-PushVarPtr(Ident[IdentIndex].Value, Ident[IdentIndex].Scope, BlockStackTop - Ident[IdentIndex].NestingLevel);
-ValType := Ident[IdentIndex].DataType;
+        PushVarPtr(PIdent^.Value, PIdent.Scope, BlockStackTop - PIdent^.NestingLevel);
+        ValType := PIdent^.DataType;
 
 
-if Types[Ident[IdentIndex].DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
-  IsRefParam := Ident[IdentIndex].PassMethod in [CONSTPASSING, VARPASSING]    // For structured parameters, CONST is equivalent to VAR
+if Types[PIdent^.DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
+  IsRefParam := PIdent^.PassMethod in [CONSTPASSING, VARPASSING]    // For structured parameters, CONST is equivalent to VAR
 else
-  IsRefParam := Ident[IdentIndex].PassMethod = VARPASSING;                    // For scalar parameters, CONST is equivalent to passing by value
+  IsRefParam := PIdent^.PassMethod = VARPASSING;                    // For scalar parameters, CONST is equivalent to passing by value
 
 if IsRefParam then DerefPtr(POINTERTYPEINDEX);                                // Parameter is passed by reference
 
@@ -710,7 +673,7 @@ end; // CompileDesignator
 
 
 
-procedure CompileActualParameters(IdentIndex: Integer);
+procedure CompileActualParameters(PIdent : PIdentifier);
 var
   NumActualParams: Integer;
   ActualParamType: Byte;
@@ -724,17 +687,16 @@ if Tok.Kind = OPARTOK then                            // Actual parameter list f
   repeat
     NextTok;
 
-    if NumActualParams + 1 > Ident[IdentIndex].NumParams then
+    if NumActualParams + 1 > PIdent^.NumParams then
       Error('Too many actual parameters');
 
-    CurParam := Ident[IdentIndex].Param[NumActualParams + 1];
+    CurParam := PIdent^.Param[NumActualParams + 1];
 
     // Evaluate actual parameters and push them onto the stack
 
     TreatCharAsString := (Tok.Kind = CHARLITERALTOK) and (CurParam^.DataType = STRINGTYPEINDEX);
 
-    if (Tok.Kind = STRINGLITERALTOK) or TreatCharAsString then
-      begin
+    if (Tok.Kind = STRINGLITERALTOK) or TreatCharAsString then begin
       if CurParam^.PassMethod <> CONSTPASSING then
         Error('String literals can be passed as CONST only');
       IsRefParam := FALSE;
@@ -760,8 +722,7 @@ if Tok.Kind = OPARTOK then                            // Actual parameter list f
     Inc(NumActualParams);
 
     // Try to convert integer to real
-    if ConversionIsPossible(ActualParamType, CurParam^.DataType) and not IsRefParam then
-      begin
+    if ConversionIsPossible(ActualParamType, CurParam^.DataType) and not IsRefParam then begin
       GenerateFloat(0);
       ActualParamType := REALTYPEINDEX;
       end;
@@ -772,7 +733,7 @@ if Tok.Kind = OPARTOK then                            // Actual parameter list f
   EatTok(CPARTOK);
   end;// if Tok.Kind = OPARTOR
 
-if NumActualParams < Ident[IdentIndex].NumParams then
+if NumActualParams < PIdent^.NumParams then
   Error('Too few actual parameters');
   
 end;// CompileActualParameters  
@@ -783,39 +744,39 @@ end;// CompileActualParameters
 
 procedure CompileFactor(var ValType: Byte);
 var
-  IdentIndex: Integer;
+  PIdent : PIdentifier;
 begin
 case Tok.Kind of
   IDENTTOK:
     begin
-    IdentIndex := GetIdent(Tok.Name);
-    if Ident[IdentIndex].Kind = PROC then
-      Error('Expression expected but procedure ' + Ident[IdentIndex].Name + ' found')
-    else if Ident[IdentIndex].Kind = FUNC then                                      // Function call
-      if Ident[IdentIndex].PredefIndex <> 0 then                                    // Predefined function call
-        CompilePredefinedFunc(Ident[IdentIndex].PredefIndex, ValType)
+    PIdent := FindIdent(Tok.Name);
+    if PIdent^.Kind = PROC then
+      Error('Expression expected but procedure ' + PIdent^.Name + ' found')
+    else if PIdent^.Kind = FUNC then                                      // Function call
+      if PIdent^.PredefIndex <> 0 then                                    // Predefined function call
+        CompilePredefinedFunc(PIdent^.PredefIndex, ValType)
       else                                                                          // User-defined function call
         begin
         NextTok;
-        CompileActualParameters(IdentIndex);
-        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[IdentIndex].ProcAsBlock);
-        GenerateCall(Ident[IdentIndex].Value, BlockStackTop - Ident[IdentIndex].NestingLevel);
+        CompileActualParameters(PIdent);
+        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], PIdent^.ProcAsBlock);
+        GenerateCall(PIdent^.Value, BlockStackTop - PIdent^.NestingLevel);
         RestoreStackTop;
-        ValType := Ident[IdentIndex].DataType;
+        ValType := PIdent^.DataType;
         end // FUNC
-    else if Ident[IdentIndex].Kind = VARIABLE then            // Designator
+    else if PIdent^.Kind = VARIABLE then            // Designator
       begin
       CompileDesignator(ValType);
       if not (Types[ValType].TypeKind in [ARRAYTYPE, RECORDTYPE]) then  // Factors of type 'array' or 'record' should contain a pointer to them
         DerefPtr(ValType);
       end
-    else if Ident[IdentIndex].Kind = CONSTANT then            // Constant
+    else if PIdent^.Kind = CONSTANT then            // Constant
       begin
-      ValType := Ident[IdentIndex].DataType;
+      ValType := PIdent^.DataType;
       if ValType = REALTYPE then
-        PushConst(Integer((Pointer(@Ident[IdentIndex].FracValue))^))
+        PushConst(Integer((Pointer(@PIdent^.FracValue))^))
       else
-        PushConst(Ident[IdentIndex].Value);
+        PushConst(PIdent^.Value);
       NextTok;
       end
     else                                                      // Type cast
@@ -825,11 +786,11 @@ case Tok.Kind of
       CompileExpression(ValType);
       EatTok(CPARTOK);
 
-      if not ((Types[Ident[IdentIndex].DataType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE]) and
+      if not ((Types[PIdent^.DataType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE]) and
               (Types[ValType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE])) then
         Error('Invalid typecast');
 
-      ValType := Ident[IdentIndex].DataType;
+      ValType := PIdent^.DataType;
       end;
     end;
 
@@ -1047,30 +1008,31 @@ end; // CompileCompoundStatement
 
 procedure CompileStatement;
 var
-  IdentIndex, ResultIdentIndex, NumCaseStatements: Integer;
+  NumCaseStatements: Integer;
   ConstVal, ConstVal2: TConst;
   ExpressionType, DesignatorType, ConstValType, SelectorType: Byte;
   Down, ExitLoop, TreatCharAsString: Boolean;
+  PIdent, ResultIdent : PIdentifier;
 begin
 
 case Tok.Kind of
   IDENTTOK:
     begin
-    IdentIndex := GetIdent(Tok.Name);
-    case Ident[IdentIndex].Kind of
+    PIdent := FindIdent(Tok.Name);
+    case PIdent^.Kind of
 
       VARIABLE, FUNC:                                                 // Variable or function result assignment
         begin
-        if Ident[IdentIndex].Kind = VARIABLE then
+        if PIdent^.Kind = VARIABLE then
           CompileDesignator(DesignatorType)
         else
           begin
-          if Ident[IdentIndex].ProcAsBlock <> BlockStack[BlockStackTop] then
-            Error('Current function name expected but ' + Ident[IdentIndex].Name + ' found');
+          if PIdent^.ProcAsBlock <> BlockStack[BlockStackTop] then
+            Error('Current function name expected but ' + PIdent^.Name + ' found');
 
-          ResultIdentIndex := GetIdent('RESULT');
-          PushVarPtr(Ident[ResultIdentIndex].Value, LOCAL, 0);
-          DesignatorType := Ident[ResultIdentIndex].DataType;
+          ResultIdent := FindIdent('RESULT');
+          PushVarPtr(ResultIdent^.Value, LOCAL, 0);
+          DesignatorType := ResultIdent^.DataType;
 
           NextTok;
           end;    
@@ -1083,9 +1045,7 @@ case Tok.Kind of
           PushVarPtr(Tok.StrAddress, GLOBAL, 0);
           ExpressionType := STRINGTYPEINDEX;
           NextTok;
-          end
-        else                                                          
-          CompileExpression(ExpressionType);                          // General rule - right-hand side expression
+          end else CompileExpression(ExpressionType); // General rule - right-hand side expression
 
         // Try to convert integer to real
         if ConversionIsPossible(ExpressionType, DesignatorType) then
@@ -1103,18 +1063,18 @@ case Tok.Kind of
         end;// VARIABLE
 
       PROC:                                                           // Procedure call
-        if Ident[IdentIndex].PredefIndex <> 0 then                    // Predefined procedure call
-          CompilePredefinedProc(Ident[IdentIndex].PredefIndex)
+        if PIdent^.PredefIndex <> 0 then                    // Predefined procedure call
+          CompilePredefinedProc(PIdent^.PredefIndex)
         else                                                          // User-defined procedure call
           begin
           NextTok;
-          CompileActualParameters(IdentIndex);
-          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], Ident[IdentIndex].ProcAsBlock);
-          GenerateCall(Ident[IdentIndex].Value, BlockStackTop - Ident[IdentIndex].NestingLevel);
+          CompileActualParameters(PIdent);
+          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], PIdent^.ProcAsBlock);
+          GenerateCall(PIdent^.Value, BlockStackTop - PIdent^.NestingLevel);
           end;// PROC
     else
-      Error('Statement expected but ' + Ident[IdentIndex].Name + ' found');
-    end// case Ident[IdentIndex].Kind
+      Error('Statement expected but ' + PIdent^.Name + ' found');
+    end// case PIdent^.Kind
     end;
 
   BEGINTOK:
@@ -1241,22 +1201,22 @@ case Tok.Kind of
     begin
     NextTok;
     AssertIdent;
-    IdentIndex := GetIdent(Tok.Name);
+    PIdent := FindIdent(Tok.Name);
 
-    if (Ident[IdentIndex].Kind <> VARIABLE) or
-      ((Ident[IdentIndex].NestingLevel <> 1) and (Ident[IdentIndex].NestingLevel <> BlockStackTop)) or
-       (Ident[IdentIndex].PassMethod <> VALPASSING) then
+    if (PIdent^.Kind <> VARIABLE) or
+      ((PIdent^.NestingLevel <> 1) and (PIdent^.NestingLevel <> BlockStackTop)) or
+       (PIdent^.PassMethod <> VALPASSING) then
       Error('Simple local variable expected as FOR loop counter');
 
-    if not (Types[Ident[IdentIndex].DataType].TypeKind in OrdinalTypes) then
+    if not (Types[PIdent^.DataType].TypeKind in OrdinalTypes) then
       Error('Ordinal variable expected as FOR loop counter');
 
-    PushVarPtr(Ident[IdentIndex].Value, Ident[IdentIndex].Scope, 0);
+    PushVarPtr(PIdent^.Value, PIdent^.Scope, 0);
 
     NextTok;
     EatTok(ASSIGNTOK);
     CompileExpression(ExpressionType);
-    GetCompatibleType(ExpressionType, Ident[IdentIndex].DataType);
+    GetCompatibleType(ExpressionType, PIdent^.DataType);
 
     if not (Tok.Kind in [TOTOK, DOWNTOTOK]) then
       Error('TO or DOWNTO expected but ' + GetSpelling(Tok) + ' found');
@@ -1265,22 +1225,22 @@ case Tok.Kind of
 
     NextTok;
     CompileExpression(ExpressionType);
-    GetCompatibleType(ExpressionType, Ident[IdentIndex].DataType);
+    GetCompatibleType(ExpressionType, PIdent^.DataType);
 
-    SaveStackTop;                                             // Save final value
-    GenerateAssignment(Ident[IdentIndex].DataType);           // Assign initial value to the counter
-    RestoreStackTop;                                          // Restore final value
+    SaveStackTop;                           // Save final value
+    GenerateAssignment(PIdent^.DataType);   // Assign initial value to the counter
+    RestoreStackTop;                        // Restore final value
 
     Inc(CodePosStackTop);
     CodePosStack[CodePosStackTop] := CodeSize;                // Save return address used by GenerateForEpilog
 
-    GenerateForCondition(Ident[IdentIndex].Value, Ident[IdentIndex].Scope, TypeSize(Ident[IdentIndex].DataType), Down);  // Satisfied if counter does not reach the second expression value
+    GenerateForCondition(PIdent^.Value, PIdent^.Scope, TypeSize(PIdent^.DataType), Down);  // Satisfied if counter does not reach the second expression value
 
     EatTok(DOTOK);
 
     GenerateIfProlog;
     CompileStatement;
-    GenerateForEpilog(Ident[IdentIndex].Value, Ident[IdentIndex].Scope, TypeSize(Ident[IdentIndex].DataType), Down);
+    GenerateForEpilog(PIdent^.Value, PIdent^.Scope, TypeSize(PIdent^.DataType), Down);
     end;
 
 end;// case
@@ -1292,10 +1252,11 @@ end;// CompileStatement
 procedure CompileType(var DataType: Byte);
 var
   FieldInListName: array [1..MAXFIELDS] of TName;
-  IdentIndex, NumFieldsInList, FieldInListIndex: LongInt;
+  NumFieldsInList, FieldInListIndex: LongInt;
   NestedDataType, LowBoundType, HighBoundType, ArrType, IndexType, FieldType: Byte;
   ConstVal: TConst;
   TypeNameGiven, ExitLoop: Boolean;
+  PIdent : PIdentifier;
 
   procedure DeclareField(const Name: TName; RecType, FieldType: Byte);
   var
@@ -1326,9 +1287,9 @@ if Tok.Kind = DEREFERENCETOK then                                 // Typed point
   // Compile pointer base type
   NextTok;
   AssertIdent;
-  IdentIndex := GetIdentUnsafe(Tok.Name);                         
+  PIdent := FindIdentUnsafe(Tok.Name);                         
   
-  if IdentIndex = 0 then                                          // Check for a forward-referenced base type
+  if PIdent = nil then                                          // Check for a forward-referenced base type
     begin
     // Add new forward-referenced type
     Inc(NumTypes);
@@ -1339,9 +1300,9 @@ if Tok.Kind = DEREFERENCETOK then                                 // Typed point
     end
   else
     begin
-    if Ident[IdentIndex].Kind <> USERTYPE then
+    if PIdent^.Kind <> USERTYPE then
       Error('Type name expected');
-    NestedDataType := Ident[IdentIndex].DataType;                 // Usual base type
+    NestedDataType := PIdent^.DataType;                 // Usual base type
     end;
 
   Types[DataType].BaseType := NestedDataType;
@@ -1435,15 +1396,15 @@ else if Tok.Kind = RECORDTOK then                                 // Record
 else                                                                              // Subrange or type name
   begin
   TypeNameGiven := FALSE;
-  IdentIndex := 0;
+  PIdent := nil;
   if Tok.Kind = IDENTTOK then begin
-    IdentIndex := GetIdent(Tok.Name);
-    if Ident[IdentIndex].Kind = USERTYPE then TypeNameGiven := TRUE;
+    PIdent := FindIdent(Tok.Name);
+    if PIdent^.Kind = USERTYPE then TypeNameGiven := TRUE;
     end;
 
   if TypeNameGiven then                                                           // Type identifier
   begin
-    DataType := Ident[IdentIndex].DataType;
+    DataType := PIdent^.DataType;
     NextTok;
     end else begin
     // Subrange
@@ -1480,29 +1441,29 @@ end;// CompileType
 
 
 
-procedure CompileBlock(BlockIdentIndex: Integer);
+procedure CompileBlock(BlockIdent: PIdentifier);
 var
   NameTok, ProcFuncTok: TToken;
   IdentInListName: array [1..MAXPARAMS] of TName;
   LocalDataSize, ParamDataSize: Integer;
-  NumIdentInList, IdentInListIndex, ForwardIdentIndex, IdentIndex, ParamIndex, FieldIndex, TypeIndex: Integer;
+  NumIdentInList, IdentInListIndex, ParamIndex, FieldIndex, TypeIndex: Integer;
   ConstVal: TConst;
   ExitLoop: Boolean;
   ListPassMethod: Byte;
   VarType, ConstValType: Byte;
-
+  ForwardIdent, PIdent : PIdentifier;
 
   procedure DeclareId(const Name: TName; Kind: Byte; TotalNumParams: Integer; DataType: Byte; PassMethod: Byte; ConstValue: LongInt; FracConstValue: Single; PredefIndex: Byte);
   var
-    i: Integer;
+    i: PIdentifier;
     Scope: Byte;
   begin
   if BlockStack[BlockStackTop] = 1 then Scope := GLOBAL else Scope := LOCAL;
 
-  i := GetIdentUnsafe(Name);
+  i := FindIdentUnsafe(Name);
 
-  if (i > 0) and (Ident[i].Block = BlockStack[BlockStackTop]) then
-    Error('Duplicate identifier: ' + Name);
+  if i <> nil then
+     if i^.Block = BlockStack[BlockStackTop] then Error('Duplicate identifier: ' + Name);
 
   Inc(NumIdent);
   Ident[NumIdent].Name := Name;
@@ -1514,7 +1475,8 @@ var
   Ident[NumIdent].NumParams := 0;
   Ident[NumIdent].PassMethod := PassMethod;
   Ident[NumIdent].IsUnresolvedForward := FALSE;
-
+  Ident[NumIdent].hash := strhash(name);
+  
   case Kind of
     PROC, FUNC:
       if PredefIndex = 0 then
@@ -1665,10 +1627,10 @@ var
 begin
 Inc(BlockStackTop);
 
-if BlockIdentIndex = 0 then
+if BlockIdent = nil then
   BlockStack[BlockStackTop] := 1
 else
-  BlockStack[BlockStackTop] := Ident[BlockIdentIndex].ProcAsBlock;
+  BlockStack[BlockStackTop] := BlockIdent^.ProcAsBlock;
 
 ParamDataSize := 0;
 LocalDataSize := 0;
@@ -1682,18 +1644,18 @@ if BlockStack[BlockStackTop] = 1 then             // Main program
 else
   begin
   // DeclareId parameters like local variables
-  for ParamIndex := 1 to Ident[BlockIdentIndex].NumParams do
-    DeclareId(Ident[BlockIdentIndex].Param[ParamIndex]^.Name,
+  for ParamIndex := 1 to BlockIdent^.NumParams do
+    DeclareId(BlockIdent^.Param[ParamIndex]^.Name,
             VARIABLE,
-            Ident[BlockIdentIndex].NumParams,
-            Ident[BlockIdentIndex].Param[ParamIndex]^.DataType,
-            Ident[BlockIdentIndex].Param[ParamIndex]^.PassMethod,
+            BlockIdent^.NumParams,
+            BlockIdent^.Param[ParamIndex]^.DataType,
+            BlockIdent^.Param[ParamIndex]^.PassMethod,
             0,
             0.0,
             0);
 
   // Allocate Result variable if the current block is a function
-  if Ident[BlockIdentIndex].Kind = FUNC then DeclareId('RESULT', VARIABLE, 0, Ident[BlockIdentIndex].DataType, VALPASSING, 0, 0.0, 0);
+  if BlockIdent^.Kind = FUNC then DeclareId('RESULT', VARIABLE, 0, BlockIdent^.DataType, VALPASSING, 0, 0.0, 0);
   end;// else
 
 GenerateDeclarationProlog;
@@ -1800,15 +1762,15 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
     AssertIdent;
 
     // Check for forward declaration resolution
-    ForwardIdentIndex := GetIdentUnsafe(Tok.Name);
-    if ForwardIdentIndex <> 0 then
-      if not Ident[ForwardIdentIndex].IsUnresolvedForward or
-         (Ident[ForwardIdentIndex].Block <> BlockStack[BlockStackTop]) or
-         ((ProcFuncTok.Kind = PROCEDURETOK) and (Ident[ForwardIdentIndex].Kind <> PROC)) or
-         ((ProcFuncTok.Kind = FUNCTIONTOK) and (Ident[ForwardIdentIndex].Kind <> FUNC)) then
-       ForwardIdentIndex := 0;                                      // Found an identifier of another kind or scope, or it is already resolved
+    ForwardIdent := FindIdentUnsafe(Tok.Name);
+    if ForwardIdent <> nil then
+      if not ForwardIdent^.IsUnresolvedForward or
+         (ForwardIdent^.Block <> BlockStack[BlockStackTop]) or
+         ((ProcFuncTok.Kind = PROCEDURETOK) and (ForwardIdent^.Kind <> PROC)) or
+         ((ProcFuncTok.Kind = FUNCTIONTOK) and (ForwardIdent^.Kind <> FUNC)) then
+       ForwardIdent := nil;                                      // Found an identifier of another kind or scope, or it is already resolved
 
-    if ForwardIdentIndex = 0 then
+    if ForwardIdent = nil then
       begin
 
       if ProcFuncTok.Kind = PROCEDURETOK then
@@ -1855,9 +1817,9 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
 
           // Only type names are allowed for formal parameters
           AssertIdent;
-          IdentIndex := GetIdent(Tok.Name);
-          if Ident[IdentIndex].Kind = USERTYPE then
-            VarType := Ident[IdentIndex].DataType
+          PIdent := FindIdent(Tok.Name);
+          if PIdent^.Kind = USERTYPE then
+            VarType := PIdent^.DataType
           else
             Error('Type name expected');
           NextTok;
@@ -1898,9 +1860,9 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
 
         // Only type names are allowed for function results
         AssertIdent;
-        IdentIndex := GetIdent(Tok.Name);
-        if Ident[IdentIndex].Kind = USERTYPE then
-          VarType := Ident[IdentIndex].DataType
+        PIdent := FindIdent(Tok.Name);
+        if PIdent^.Kind = USERTYPE then
+          VarType := PIdent^.DataType
         else
           Error('Type name expected');
         NextTok;
@@ -1918,7 +1880,7 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
     EatTok(SEMICOLONTOK);
 
     // Check for a FORWARD directive (it is not a reserved word)
-    if (ForwardIdentIndex = 0) and (Tok.Kind = IDENTTOK) and (Tok.Name = 'FORWARD') then  // Forward declaration
+    if (ForwardIdent = nil) and (Tok.Kind = IDENTTOK) and (Tok.Name = 'FORWARD') then  // Forward declaration
       begin
       Inc(NumBlocks);
       Ident[NumIdent].ProcAsBlock := NumBlocks;
@@ -1929,17 +1891,17 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
     else
       begin
 
-      if ForwardIdentIndex = 0 then                                                       // New declaration
+      if ForwardIdent = nil then                                                       // New declaration
         begin
         Inc(NumBlocks);
         Ident[NumIdent].ProcAsBlock := NumBlocks;
-        CompileBlock(NumIdent);
+        CompileBlock(@Ident[NumIdent]);
         end
       else                                                                                // Forward declaration resolution
         begin
-        GenerateForwardResolution(ForwardIdentIndex);
-        CompileBlock(ForwardIdentIndex);
-        Ident[ForwardIdentIndex].IsUnresolvedForward := FALSE;
+        GenerateForwardResolution(ForwardIdent);
+        CompileBlock(ForwardIdent);
+        ForwardIdent^.IsUnresolvedForward := FALSE;
         end;
 
       end;
@@ -1957,10 +1919,10 @@ if BlockStack[BlockStackTop] <> 1 then
 CompileCompoundStatement;
 
 // If function, return Result value via the EDX register
-if (BlockStack[BlockStackTop] <> 1) and (Ident[BlockIdentIndex].Kind = FUNC) then
+if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then
   begin
-  PushVarPtr(Ident[GetIdent('RESULT')].Value, LOCAL, 0);
-  DerefPtr(Ident[BlockIdentIndex].DataType);
+  PushVarPtr(FindIdent('RESULT')^.Value, LOCAL, 0);
+  DerefPtr(BlockIdent^.DataType);
   SaveStackTop;
   end;
 
@@ -1969,15 +1931,13 @@ if BlockStack[BlockStackTop] = 1 then          // Main program
 else
   begin
   GenerateStackFrameEpilog;
-  GenerateReturn(Ident[BlockIdentIndex].NumParams * SizeOf(LongInt));
+  GenerateReturn(BlockIdent^.NumParams * SizeOf(LongInt));
   end;
 
 // Delete local identifiers and types from the tables to save space
-while (NumIdent > 0) and (Ident[NumIdent].Block = BlockStack[BlockStackTop]) do
-  begin
+while (NumIdent > 0) and (Ident[NumIdent].Block = BlockStack[BlockStackTop]) do begin
   // If procedure or function, delete parameters first
-  if Ident[NumIdent].Kind in [PROC, FUNC] then
-    begin
+  if Ident[NumIdent].Kind in [PROC, FUNC] then begin
     if Ident[NumIdent].IsUnresolvedForward then
       Error('Unresolved forward declaration of ' + Ident[NumIdent].Name);
 
@@ -2019,7 +1979,7 @@ begin
         NextTok;
 
         Inc(NumBlocks);
-        CompileBlock(0);
+        CompileBlock(nil);
 
         CheckTok(PERIODTOK);
 end;// CompileProgram

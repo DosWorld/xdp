@@ -27,7 +27,7 @@ INTERFACE
 
 USES xdptype;
 
-const
+CONST
   Keyword: array [1..NUMKEYWORDS] of TKeyName =
     (
     'AND',
@@ -64,36 +64,54 @@ const
     );
 
 
-var
-  Ident: array [1..MAXIDENTS] of TIdentifier;
-  Types: array [1..MAXTYPES] of TType;
-  UnitStack: array [1..MAXUNITNESTING] of TUnit;
-  ExeHeader : MZ_HEADER;
-  ExeRelocs : array[0..1023] of MZ_RELOC;
-  WriteExeRlocsCount : integer;
-  StaticCodeData: array [0..65535] of Byte;
-  StaticStringData: array [0..MAXSTATICSTRDATASIZE - 1] of Char;
-  CodePosStack: array [0..1023] of Integer;
-  BlockStack: array [1..MAXNESTING] of Byte;
-  CallGraph: array [0..MAXBLOCKS - 1, 0..MAXBLOCKS div 8 - 1] of Byte;    // Rows are callers, columns are callees
-  BlockIsNotDead: array [1..MAXBLOCKS] of Boolean;
+VAR
+Ident: array [1..MAXIDENTS] of TIdentifier;
+Types: array [1..MAXTYPES] of TType;
+UnitStack: array [1..MAXUNITNESTING] of TUnit;
+ExeHeader : MZ_HEADER;
+ExeRelocs : array[0..1023] of MZ_RELOC;
+WriteExeRlocsCount : integer;
+StaticCodeData: array [0..65535] of Byte;
+StaticStringData: array [0..MAXSTATICSTRDATASIZE - 1] of Char;
+CodePosStack: array [0..1023] of Integer;
+BlockStack: array [1..MAXNESTING] of Byte;
+CallGraph: array [0..MAXBLOCKS - 1, 0..MAXBLOCKS div 8 - 1] of Byte;    // Rows are callers, columns are callees
+BlockIsNotDead: array [1..MAXBLOCKS] of Boolean;
 
-  Tok: TToken;
+Tok: TToken;
 
-  NumIdent, NumTypes, NumStaticStrChars, VarDataOrigin, NumBlocks, BlockStackTop,
-  CodeSize, CodePosStackTop, GlobalDataSize,
-  Pass, UnitStackTop, Line: Integer;
+NumIdent, NumTypes, NumStaticStrChars, VarDataOrigin, NumBlocks, BlockStackTop,
+CodeSize, CodePosStackTop, GlobalDataSize,
+Pass, UnitStackTop, Line: Integer;
 
-  ProgramName, ExeName: TString;
+ProgramName, ExeName: TString;
 
-  InFile: file of Char;
-  OutFile: file of Byte;
+InFile: file of Char;
+OutFile: file of Byte;
 
-  EndOfProgram: Boolean;
+EndOfProgram: Boolean;
 
-  ch, ch2: Char;
-  syspath : string;
+ch, ch2: Char;
+syspath : string;
+
+procedure ZeroAll;
 
 IMPLEMENTATION
+  
+procedure ZeroAll;
+begin
+        NumIdent := 0;
+        NumTypes := 0;
+        NumBlocks := 0;
+        BlockStackTop := 0;
+        CodeSize := 0;
+        CodePosStackTop := 0;
+        NumStaticStrChars := 0;
+        GlobalDataSize := 0;
+        WriteExeRlocsCount := 0;
+        FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
+        ExeHeader.sign := MZ_SIGN;
+        ExeHeader.sp := $FFFE;
+end;
 
 END.

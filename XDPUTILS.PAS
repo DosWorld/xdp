@@ -34,8 +34,9 @@ procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
 procedure DisposeAll;  
 procedure Error(const Msg: string);
 function GetKeyword(const S: TKeyName): Integer;
-function GetIdentUnsafe(const S: TName): Integer;
-function GetIdent(const S: TName): Integer;
+function FindIdentUnsafe(const S: TName): PIdentifier;
+function FindIdent(const S: TName): PIdentifier;
+
 function GetField(RecType: Byte; const S: TName): Integer;
 function GetSpelling(var Tok: TToken): TString;
 procedure DefineStaticString(var Tok: TToken; const StrValue: TString);
@@ -47,6 +48,8 @@ function ConversionIsPossible(SrcType, DestType: Byte): Boolean;
 procedure AssertIdent;
 procedure CheckOperator(op: Byte; DataType: Byte);
 procedure AddCallGraphChild(ParentBlock, ChildBlock: Integer);
+
+FUNCTION strhash(s : STRING):WORD;
 
 IMPLEMENTATION
 
@@ -124,76 +127,68 @@ end;
 
 
 function GetKeyword(const S: TKeyName): Integer;
-var
-  Max, Mid, Min: Integer;
-  Found: Boolean;
+var     Max, Mid, Min : Integer;
+        Found         : Boolean;
 begin
-Result := 0;
+        Result := 0;
 
-// Binary search
-Min := 1;
-Max := NUMKEYWORDS;
+        // Binary search
+        Min := 1;
+        Max := NUMKEYWORDS;
 
-repeat
-  Mid := (Min + Max) div 2;
-  if S > Keyword[Mid] then
-    Min := Mid + 1
-  else
-    Max := Mid - 1;
-  Found := S = Keyword[Mid];
-until Found or (Min > Max);
+        repeat
+                Mid := (Min + Max) div 2;
+                if S > Keyword[Mid] then Min := Mid + 1
+                else Max := Mid - 1;
+                Found := S = Keyword[Mid];
+        until Found or (Min > Max);
 
-if Found then Result := NUMDELIMITERS + Mid;
+        if Found then Result := NUMDELIMITERS + Mid;
 end;
 
 
-
-function GetIdentUnsafe(const S: TName): Integer;
-var
-  IdentIndex, BlockStackIndex: Integer;
+function FindIdentUnsafe(const S: TName): PIdentifier;
+var     IdentIndex, BlockStackIndex : Integer;
+        h                           : WORD;
 begin
-Result := 0;
+        Result := nil;
 
-BlockStackIndex := BlockStackTop;
-while (BlockStackIndex > 0) and (Result = 0) do
-  begin
-
-  IdentIndex := NumIdent;
-  while (IdentIndex > 0) and (Result = 0) do
-    begin
-    if (Ident[IdentIndex].Name = S) and (Ident[IdentIndex].Block = BlockStack[BlockStackIndex]) then Result := IdentIndex;
-    Dec(IdentIndex);
-    end;// while
-
-  Dec(BlockStackIndex);
-  end;// while
+        h := strhash(s);
+        BlockStackIndex := BlockStackTop;
+        while BlockStackIndex > 0 do begin
+                IdentIndex := NumIdent;
+                while IdentIndex > 0 do begin
+                                if h = Ident[IdentIndex].hash then
+                                        if (Ident[IdentIndex].Name = S)
+                                                and (Ident[IdentIndex].Block = BlockStack[BlockStackIndex]) then begin
+                                                        Result := @Ident[IdentIndex];
+                                                        exit;
+                                end;
+                        Dec(IdentIndex);
+                end;
+                Dec(BlockStackIndex);
+        end;
 end;
 
-
-function GetIdent(const S: TName): Integer;
+function FindIdent(const S: TName): PIdentifier;
 begin
-        Result := GetIdentUnsafe(S);
-        if Result = 0 then Error('Unknown identifier: ' + S);
+        Result := FindIdentUnsafe(S);
+        if Result = nil then Error('Unknown identifier: ' + S);
 end;
-
-
 
 
 function GetField(RecType: Byte; const S: TName): Integer;
-var
-  FieldIndex: Integer;
+var     FieldIndex: Integer;
 begin
-Result := 0;
+        Result := 0;
 
-FieldIndex := 1;
-while (FieldIndex <= Types[RecType].NumFields) and (Result = 0) do
-  begin
-  if Types[RecType].Field[FieldIndex]^.Name = S then Result := FieldIndex;
-  Inc(FieldIndex);
-  end;// while
+        FieldIndex := 1;
+        while (FieldIndex <= Types[RecType].NumFields) and (Result = 0) do begin
+                if Types[RecType].Field[FieldIndex]^.Name = S then Result := FieldIndex;
+                Inc(FieldIndex);
+        end;
 
-if Result = 0 then
-  Error('Unknown field: ' + S);
+        if Result = 0 then Error('Unknown field: ' + S);
 end;      
 
 
@@ -413,6 +408,15 @@ begin
 // Set bit at ParentBlock row, ChildBlock column
 CallGraph[ParentBlock, ChildBlock div 8] := CallGraph[ParentBlock, ChildBlock div 8] or (1 shl (ChildBlock mod 8));
 end;
+
+FUNCTION strhash(s : STRING):WORD;
+VAR     h : WORD;
+        i : INTEGER;
+BEGIN
+        h := 0;
+        FOR i := 1 TO LENGTH(s) DO h := h * 33 + ORD(s[i]);
+        strhash := h;
+END;
 
 end.
 

@@ -26,6 +26,8 @@ UNIT xdpgen;
 
 INTERFACE
 
+USES xdptype;
+
 procedure Gen(b: Byte);
 procedure GenStr(str : string);
 procedure GenAt(Pos: LongInt; b: Byte);
@@ -85,11 +87,11 @@ procedure GenerateProgramEpilog;
 procedure GenerateStackFrameProlog(TotalLocalVarsSize: Integer);
 procedure GenerateStackFrameEpilog;
 procedure GenerateForwardReference;
-procedure GenerateForwardResolution(IdentIndex: Integer);
+procedure GenerateForwardResolution(PIdent: PIdentifier);
 
 IMPLEMENTATION
 
-USES xdptype, xdpglob, xdputils;
+USES xdpglob, xdputils;
 
 procedure Gen(b: Byte);
 begin
@@ -1177,11 +1179,11 @@ end;
 
 
 
-procedure GenerateForwardResolution(IdentIndex: Integer);
+procedure GenerateForwardResolution(PIdent: PIdentifier);
 var
   CodePos: Integer;
 begin
-CodePos := Ident[IdentIndex].Value;
+CodePos := PIdent^.Value;
 GenAt(CodePos, $E9); GenWordAt(CodePos + 1, CodeSize - (CodePos + 3));      // jmp Ident[IdentIndex].Value
 end;
 

@@ -25,39 +25,21 @@ program XDP;
 
 USES xdptype, xdpglob, xdputils, xdpscan, xdppars, xdpopt;
 
-const
-  VERSION               = '0.7.13dw';
-  
-// ----- MAIN PROGRAM -----
+CONST
+VERSION = '0.7.13';
 
+VAR     BlockIndex: Integer;
 
-procedure ZeroAll;
-begin
-        NumIdent := 0;
-        NumTypes := 0;
-        NumBlocks := 0;
-        BlockStackTop := 0;
-        CodeSize := 0;
-        CodePosStackTop := 0;
-        NumStaticStrChars := 0;
-        GlobalDataSize := 0;
-        WriteExeRlocsCount := 0;
-        FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
-        ExeHeader.sign := MZ_SIGN;
-        ExeHeader.sp := $FFFE;
-end;
-
-var     BlockIndex: Integer;
-
-begin
-        if ParamCount < 1 then begin
-                WriteLn('XD Pascal compiler v. ', VERSION, '.');
+BEGIN
+        IF ParamCount <> 1 THEN BEGIN
                 WriteLn('Copyright 2010 Vasiliy Tereshkov');
                 WriteLn('Copyright 2023 DosWorld');
+                WriteLn('XD Pascal compiler Version ', VERSION, '/dw');
                 WriteLn;
-                WriteLn('Usage: xdp <file.pas>');
+                WriteLn('Usage:');
+                WriteLn(#9, BaseName(ParamStr(0)),' file.pas');
                 Halt(1);
-        end;
+        END;
 
         syspath := GetPathName(ParamStr(0));
 
@@ -66,10 +48,9 @@ begin
         ChangeExt(ProgramName, 'exe', ExeName);
         Assign(OutFile, ExeName);
 
-        // Default mode
-        for BlockIndex := 1 to MAXBLOCKS do BlockIsNotDead[BlockIndex] := FALSE;
+        FOR BlockIndex := 1 TO MAXBLOCKS DO BlockIsNotDead[BlockIndex] := FALSE;
         
-        // Preliminary pass: compile the program and build the call graph
+        { Preliminary pass: compile the program and build the call graph }
         VarDataOrigin := 0;
         ZeroAll;
         
@@ -78,18 +59,20 @@ begin
         InitScanner;
         CompileProgram;
         
-        // Visit the call graph nodes and mark all procedures that are called as not dead
+        { Visit the call graph nodes and mark all procedures
+          that are called as not dead }
         MarkBlockNotDead(1);
         
         VarDataOrigin := NumStaticStrChars;
 
-// Final pass: compile the program and generate output (BlockIsNotDead array is preserved)
+        { Final pass: compile the program and generate output
+          (BlockIsNotDead array is preserved) }
 
         ZeroAll;
         Pass := CODEGENERATIONPASS;
 
         Rewrite(OutFile);
-        if IOResult <> 0 then Error('Unable to open output file ' + ExeName);
+        IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
         InitScanner;
         CompileProgram;
         BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
@@ -98,5 +81,5 @@ begin
         BlockWrite(OutFile, StaticStringData, NumStaticStrChars);
 
         Close(OutFile);
-end.
+END.
 
