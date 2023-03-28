@@ -19,8 +19,7 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.}
-{$I-}
-{$MODE DELPHI}
+{$I-,R-,S-}
 UNIT xdputils;
 // ----- GENERAL ROUTINES -----
 INTERFACE
@@ -31,11 +30,7 @@ FUNCTION BaseName(s : STRING):STRING;
 FUNCTION GetPathName(s : STRING):STRING;
 procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
 
-procedure DisposeAll;  
-procedure Error(const Msg: string);
 function GetKeyword(const S: TKeyName): Integer;
-function FindIdentUnsafe(const S: TName): PIdentifier;
-function FindIdent(const S: TName): PIdentifier;
 
 function GetField(RecType: Byte; const S: TName): Integer;
 function GetSpelling(var Tok: TToken): TString;
@@ -48,8 +43,6 @@ function ConversionIsPossible(SrcType, DestType: Byte): Boolean;
 procedure AssertIdent;
 procedure CheckOperator(op: Byte; DataType: Byte);
 procedure AddCallGraphChild(ParentBlock, ChildBlock: Integer);
-
-FUNCTION strhash(s : STRING):WORD;
 
 IMPLEMENTATION
 
@@ -64,7 +57,7 @@ BEGIN
                 Dec(i);
         END;
         IF i <> 0 THEN s := Copy(s, i+1, Length(s) - i);
-        Result := s;
+        BaseName := s;
 END;
 
 FUNCTION GetPathName(s : STRING):STRING;
@@ -76,7 +69,7 @@ BEGIN
                 Dec(i);
         END;
         IF i <> 0 THEN s := Copy(s, 1, i);
-        Result := s;
+        GetPathName := s;
 END;
 
 procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
@@ -94,44 +87,10 @@ begin
         else OutStr := InStr + Ext;
 end;
 
-procedure DisposeAll;
-var
-  i, j: Integer;
-begin
-// Dispose dynamically allocated parameter data
-for i := 1 to NumIdent do
-  if Ident[i].Kind in [PROC, FUNC] then
-    for j := 1 to Ident[i].NumParams do
-      Dispose(Ident[i].Param[j]);
-
-// Dispose dynamically allocated field data
-for i := 1 to NumTypes do
-  if Types[i].TypeKind = RECORDTYPE then
-    for j := 1 to Types[i].NumFields do
-      Dispose(Types[i].Field[j]);
-end;
-
-
-
-
-procedure Error(const Msg: string);
-begin
-        WriteLn(BaseName(UnitStack[UnitStackTop].FileName), '(', Line, '): ', Msg);
-        DisposeAll;
-        Close(InFile);
-        Close(OutFile);
-        Halt(1);
-end;
-
-
-
-
 function GetKeyword(const S: TKeyName): Integer;
 var     Max, Mid, Min : Integer;
         Found         : Boolean;
 begin
-        Result := 0;
-
         // Binary search
         Min := 1;
         Max := NUMKEYWORDS;
@@ -143,94 +102,68 @@ begin
                 Found := S = Keyword[Mid];
         until Found or (Min > Max);
 
-        if Found then Result := NUMDELIMITERS + Mid;
+        if Found then GetKeyword := NUMDELIMITERS + Mid
+        ELSE GetKeyword := 0;
 end;
 
-
-function FindIdentUnsafe(const S: TName): PIdentifier;
-var     IdentIndex, BlockStackIndex : Integer;
-        h                           : WORD;
-begin
-        Result := nil;
-
-        h := strhash(s);
-        BlockStackIndex := BlockStackTop;
-        while BlockStackIndex > 0 do begin
-                IdentIndex := NumIdent;
-                while IdentIndex > 0 do begin
-                                if h = Ident[IdentIndex].hash then
-                                        if (Ident[IdentIndex].Name = S)
-                                                and (Ident[IdentIndex].Block = BlockStack[BlockStackIndex]) then begin
-                                                        Result := @Ident[IdentIndex];
-                                                        exit;
-                                end;
-                        Dec(IdentIndex);
-                end;
-                Dec(BlockStackIndex);
-        end;
-end;
-
-function FindIdent(const S: TName): PIdentifier;
-begin
-        Result := FindIdentUnsafe(S);
-        if Result = nil then Error('Unknown identifier: ' + S);
-end;
-
-
+  
 function GetField(RecType: Byte; const S: TName): Integer;
 var     FieldIndex: Integer;
 begin
-        Result := 0;
-
         FieldIndex := 1;
-        while (FieldIndex <= Types[RecType].NumFields) and (Result = 0) do begin
-                if Types[RecType].Field[FieldIndex]^.Name = S then Result := FieldIndex;
+        while FieldIndex <= Types[RecType].NumFields do begin
+                if Types[RecType].Field[FieldIndex]^.Name = S then begin
+                        GetField := FieldIndex;
+                        EXIT;
+                end;
                 Inc(FieldIndex);
         end;
 
-        if Result = 0 then Error('Unknown field: ' + S);
+        Error('Unknown field: ' + S);
 end;      
 
 
 
 
 function GetSpelling(var Tok: TToken): TString;
+var     r : TString;
 begin
-        Result := 'unknown token';
-        if Tok.Kind = 0 then Result := 'no token'
+        r := 'unknown token';
+        if Tok.Kind = 0 then r := 'no token'
         else if Tok.Kind <= NUMDELIMITERS then
                 case Tok.Kind of
-                OPARTOK:        Result := '(';
-                CPARTOK:        Result := ')';
-                MULTOK:         Result := '*';
-                PLUSTOK:        Result := '+';
-                COMMATOK:       Result := ',';
-                MINUSTOK:       Result := '-';
-                PERIODTOK:      Result := '.';
-                RANGETOK:       Result := '..';
-                DIVTOK:         Result := '/';
-                COLONTOK:       Result := ':';
-                ASSIGNTOK:      Result := ':=';
-                SEMICOLONTOK:   Result := ';';
-                LTTOK:          Result := '<';
-                LETOK:          Result := '<=';
-                NETOK:          Result := '<>';
-                EQTOK:          Result := '=';
-                GTTOK:          Result := '>';
-                GETOK:          Result := '>=';
-                ADDRESSTOK:     Result := '@';
-                OBRACKETTOK:    Result := '[';
-                CBRACKETTOK:    Result := ']';
-                DEREFERENCETOK: Result := '^';
+                OPARTOK:        r := '(';
+                CPARTOK:        r := ')';
+                MULTOK:         r := '*';
+                PLUSTOK:        r := '+';
+                COMMATOK:       r := ',';
+                MINUSTOK:       r := '-';
+                PERIODTOK:      r := '.';
+                RANGETOK:       r := '..';
+                DIVTOK:         r := '/';
+                COLONTOK:       r := ':';
+                ASSIGNTOK:      r := ':=';
+                SEMICOLONTOK:   r := ';';
+                LTTOK:          r := '<';
+                LETOK:          r := '<=';
+                NETOK:          r := '<>';
+                EQTOK:          r := '=';
+                GTTOK:          r := '>';
+                GETOK:          r := '>=';
+                ADDRESSTOK:     r := '@';
+                OBRACKETTOK:    r := '[';
+                CBRACKETTOK:    r := ']';
+                DEREFERENCETOK: r := '^';
                 end // case
         else if Tok.Kind <= NUMDELIMITERS + NUMKEYWORDS then
-                Result := Keyword[Tok.Kind - NUMDELIMITERS]
+                r := Keyword[Tok.Kind - NUMDELIMITERS]
         else if Tok.Kind = IDENTTOK then
-                Result := 'identifier'
+                r := 'identifier'
         else if (Tok.Kind = INTNUMBERTOK) or (Tok.Kind = FRACNUMBERTOK) then
-                Result := 'number'
+                r := 'number'
         else if (Tok.Kind = CHARLITERALTOK) or (Tok.Kind = STRINGLITERALTOK) then
-                Result := 'literal';
+                r := 'literal';
+        GetSpelling := r;
 end;
 
 
@@ -261,17 +194,15 @@ end;
 
 function LowBound(DataType: Byte): Integer;
 begin
-Result := 0;
-case Types[DataType].TypeKind of
-  INTEGERTYPE:  Result := Low(Integer);
-  SMALLINTTYPE: Result := Low(SmallInt);
-  SHORTINTTYPE: Result := Low(ShortInt);
-  CHARTYPE:     Result := 0;
-  BOOLEANTYPE:  Result := -1;
-  SUBRANGETYPE: Result := Types[DataType].Low;
-else
-  Error('Ordinal type expected');
-end;// case
+        case Types[DataType].TypeKind of
+        INTEGERTYPE:  LowBound := Low(Integer);
+        SMALLINTTYPE: LowBound := Low(SmallInt);
+        SHORTINTTYPE: LowBound := Low(ShortInt);
+        CHARTYPE:     LowBound := 0;
+        BOOLEANTYPE:  LowBound := -1;
+        SUBRANGETYPE: LowBound:= Types[DataType].Low;
+        else Error('Ordinal type expected');
+        end;
 end;
 
                         
@@ -280,92 +211,80 @@ end;
 
 function HighBound(DataType: Byte): Integer;
 begin
-Result := 0;
-case Types[DataType].TypeKind of
-  INTEGERTYPE:  Result := High(Integer);
-  SMALLINTTYPE: Result := High(SmallInt);
-  SHORTINTTYPE: Result := High(ShortInt);
-  CHARTYPE:     Result := 255;
-  BOOLEANTYPE:  Result := 0;
-  SUBRANGETYPE: Result := Types[DataType].High;
-else
-  Error('Ordinal type expected');
-end;// case
+        case Types[DataType].TypeKind of
+        INTEGERTYPE:  HighBound := High(Integer);
+        SMALLINTTYPE: HighBound := High(SmallInt);
+        SHORTINTTYPE: HighBound := High(ShortInt);
+        CHARTYPE:     HighBound := 255;
+        BOOLEANTYPE:  HighBound := 0;
+        SUBRANGETYPE: HighBound := Types[DataType].High;
+        else Error('Ordinal type expected');
+        end;
 end;
 
 
 function TypeSize(DataType: Byte): Integer;
-var
-  i: Integer;
+var     i, r : Integer;
 begin
-Result := 0;
-case Types[DataType].TypeKind of
-  INTEGERTYPE:  Result := SizeOf(Integer);
-  SMALLINTTYPE: Result := SizeOf(SmallInt);
-  SHORTINTTYPE: Result := SizeOf(ShortInt);
-  CHARTYPE:     Result := SizeOf(Char);
-  BOOLEANTYPE:  Result := SizeOf(Boolean);
-  REALTYPE:     Result := SizeOf(Single);
-  POINTERTYPE:  Result := SizeOf(Pointer);
-  TEXTTYPE:     Result := SizeOf(Integer);
-  ARRAYTYPE:    Result := (HighBound(Types[DataType].IndexType) - LowBound(Types[DataType].IndexType) + 1) * TypeSize(Types[DataType].BaseType);
-  RECORDTYPE:   begin
-                Result := 0;
+        r := 0;
+        case Types[DataType].TypeKind of
+        INTEGERTYPE:  r := SizeOf(Integer);
+        SMALLINTTYPE: r := SizeOf(SmallInt);
+        SHORTINTTYPE: r := SizeOf(ShortInt);
+        CHARTYPE:     r := SizeOf(Char);
+        BOOLEANTYPE:  r := SizeOf(Boolean);
+        REALTYPE:     r := SizeOf(Single);
+        POINTERTYPE:  r := SizeOf(Pointer);
+        TEXTTYPE:     r := SizeOf(Integer);
+        ARRAYTYPE:    r := (HighBound(Types[DataType].IndexType) - LowBound(Types[DataType].IndexType) + 1) * TypeSize(Types[DataType].BaseType);
+        RECORDTYPE:   begin
                 for i := 1 to Types[DataType].NumFields do
-                  Result := Result + TypeSize(Types[DataType].Field[i]^.DataType);
-                end;
-  SUBRANGETYPE: Result := SizeOf(Integer);               
-else
-  Error('Illegal type');
-end;// case
-end;    
+                        r := r + TypeSize(Types[DataType].Field[i]^.DataType);
+        end;
+        SUBRANGETYPE: r := SizeOf(Integer);               
+        else Error('Illegal type');
+        end;
+        TypeSize := r;
+end;
 
 function GetCompatibleType(LeftType, RightType: Byte): Byte;
+VAR     r : BYTE;
 begin
-Result := 0;
-
-if LeftType = RightType then                 // General rule
-  Result := LeftType
-else                                         // Special cases
-  begin
-  // Untyped pointers compatible with any other pointers
-  if (Types[LeftType].TypeKind = POINTERTYPE) and (Types[RightType].TypeKind = POINTERTYPE) and
-     ((Types[LeftType].BaseType = ANYTYPE) or (Types[RightType].BaseType = ANYTYPE)) then
-    Result := LeftType;
-
-  // Subranges compatible with their host types
-  if Types[LeftType].TypeKind = SUBRANGETYPE then
-    Result := GetCompatibleType(Types[LeftType].HostType, RightType);
-  if Types[RightType].TypeKind = SUBRANGETYPE then
-    Result := GetCompatibleType(LeftType, Types[RightType].HostType);
-
-  // Integers
-  if (Types[LeftType].TypeKind in IntegerTypes) and
-     (Types[RightType].TypeKind in IntegerTypes) then
-    Result := LeftType;
-
-  // Booleans
-  if (Types[LeftType].TypeKind = BOOLEANTYPE) and
-     (Types[RightType].TypeKind = BOOLEANTYPE) then
-    Result := LeftType;
-
-  // Characters
-  if (Types[LeftType].TypeKind = CHARTYPE) and
-     (Types[RightType].TypeKind = CHARTYPE) then
-    Result := LeftType;
-  end;// if
-
-if Result = 0 then
-  Error('Incompatible types');  
+        r := 0;
+        if LeftType = RightType then r := LeftType
+        else begin
+                { Untyped pointers compatible with any other pointers }
+                if (Types[LeftType].TypeKind = POINTERTYPE) and (Types[RightType].TypeKind = POINTERTYPE) and
+                ((Types[LeftType].BaseType = ANYTYPE) or (Types[RightType].BaseType = ANYTYPE)) then
+                        r := LeftType
+                else if Types[LeftType].TypeKind = SUBRANGETYPE then
+                        r := GetCompatibleType(Types[LeftType].HostType, RightType)
+                else if Types[RightType].TypeKind = SUBRANGETYPE then
+                        r := GetCompatibleType(LeftType, Types[RightType].HostType)
+                else if (Types[LeftType].TypeKind in IntegerTypes) and
+                        (Types[RightType].TypeKind in IntegerTypes) then
+                        r := LeftType
+                else if (Types[LeftType].TypeKind = BOOLEANTYPE) and
+                        (Types[RightType].TypeKind = BOOLEANTYPE) then
+                        r := LeftType
+                else if (Types[LeftType].TypeKind = CHARTYPE) and
+                        (Types[RightType].TypeKind = CHARTYPE) then
+                        r := LeftType;
+        end;
+        if r = 0 then Error('Incompatible types');  
+        GetCompatibleType := r;
 end;
 
 
 function ConversionIsPossible(SrcType, DestType: Byte): Boolean;
 begin
-// Implicit type conversion is possible if DestType is real and SrcType is integer or a subrange of integer
-Result := (Types[DestType].TypeKind = REALTYPE) and
-          ((Types[SrcType].TypeKind in IntegerTypes) or
-           ((Types[SrcType].TypeKind = SUBRANGETYPE) and (Types[Types[SrcType].HostType].TypeKind in IntegerTypes)));
+{ Implicit type conversion is possible if DestType is real
+ and SrcType is integer or a subrange of integer }
+
+        ConversionIsPossible := (Types[DestType].TypeKind = REALTYPE) and
+        ((Types[SrcType].TypeKind in IntegerTypes) or
+        ((Types[SrcType].TypeKind = SUBRANGETYPE) and
+                (Types[Types[SrcType].HostType].TypeKind in IntegerTypes)));
 end;
 
 
@@ -374,8 +293,7 @@ end;
 
 procedure AssertIdent;
 begin
-if Tok.Kind <> IDENTTOK then
-  Error('Identifier expected but ' + GetSpelling(Tok) + ' found');
+        if Tok.Kind <> IDENTTOK then Error('Identifier expected but ' + GetSpelling(Tok) + ' found');
 end;
 
 
@@ -408,15 +326,6 @@ begin
 // Set bit at ParentBlock row, ChildBlock column
 CallGraph[ParentBlock, ChildBlock div 8] := CallGraph[ParentBlock, ChildBlock div 8] or (1 shl (ChildBlock mod 8));
 end;
-
-FUNCTION strhash(s : STRING):WORD;
-VAR     h : WORD;
-        i : INTEGER;
-BEGIN
-        h := 0;
-        FOR i := 1 TO LENGTH(s) DO h := h * 33 + ORD(s[i]);
-        strhash := h;
-END;
 
 end.
 

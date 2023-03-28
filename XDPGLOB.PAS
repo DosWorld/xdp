@@ -19,8 +19,7 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.}
-{$I-}
-{$MODE DELPHI}
+{$I-,R-,S-}
 UNIT xdpglob;
 
 INTERFACE
@@ -65,7 +64,6 @@ CONST
 
 
 VAR
-Ident: array [1..MAXIDENTS] of TIdentifier;
 Types: array [1..MAXTYPES] of TType;
 UnitStack: array [1..MAXUNITNESTING] of TUnit;
 ExeHeader : MZ_HEADER;
@@ -80,9 +78,10 @@ BlockIsNotDead: array [1..MAXBLOCKS] of Boolean;
 
 Tok: TToken;
 
-NumIdent, NumTypes, NumStaticStrChars, VarDataOrigin, NumBlocks, BlockStackTop,
-CodeSize, CodePosStackTop, GlobalDataSize,
+NumTypes, VarDataOrigin, NumBlocks, BlockStackTop,
+CodePosStackTop,
 Pass, UnitStackTop, Line: Integer;
+CodeSize, NumStaticStrChars, GlobalDataSize : LongInt;
 
 ProgramName, ExeName: TString;
 
@@ -95,9 +94,21 @@ ch, ch2: Char;
 syspath : string;
 
 procedure ZeroAll;
+function CreateIdent(S : String): PIdentifier;
+function LastIdent: PIdentifier;
+procedure KillLastIdent;
+function FindIdentUnsafe(const S: TName): PIdentifier;
+function FindIdent(const S: TName): PIdentifier;
+procedure DisposeAll;
+
+procedure Error(const Msg: string);
 
 IMPLEMENTATION
-  
+
+VAR
+Ident    : array [1..MAXIDENTS] of TIdentifier;
+NumIdent : INTEGER;
+
 procedure ZeroAll;
 begin
         NumIdent := 0;
@@ -112,6 +123,91 @@ begin
         FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
         ExeHeader.sign := MZ_SIGN;
         ExeHeader.sp := $FFFE;
+end;
+
+FUNCTION strhash(s : STRING):WORD;
+VAR     h : WORD;
+        i : INTEGER;
+BEGIN
+        h := 0;
+        FOR i := 1 TO LENGTH(s) DO h := h * 33 + ORD(s[i]);
+        strhash := h;
+END;
+
+function CreateIdent(S : String): PIdentifier;
+begin
+        Inc(NumIdent);
+        Ident[NumIdent].Name := S;
+        Ident[NumIdent].hash := strhash(Ident[NumIdent].Name);
+        CreateIdent := @Ident[NumIdent];
+end;
+
+function LastIdent: PIdentifier;
+begin
+        if NumIdent > 0 then LastIdent := @Ident[NumIdent]
+        else LastIdent := nil;
+end;
+
+procedure KillLastIdent;
+begin
+        IF NumIdent > 0 THEN Inc(NumIdent);
+end;
+
+function FindIdentUnsafe(const S: TName): PIdentifier;
+var     IdentIndex, BlockStackIndex : Integer;
+        h                           : WORD;
+begin
+        h := strhash(s);
+        BlockStackIndex := BlockStackTop;
+        while BlockStackIndex > 0 do begin
+                IdentIndex := NumIdent;
+                while IdentIndex > 0 do begin
+                                if h = Ident[IdentIndex].hash then
+                                        if (Ident[IdentIndex].Name = S)
+                                                and (Ident[IdentIndex].Block = BlockStack[BlockStackIndex]) then begin
+                                                        FindIdentUnsafe := @Ident[IdentIndex];
+                                                        EXIT;
+                                end;
+                        Dec(IdentIndex);
+                end;
+                Dec(BlockStackIndex);
+        end;
+        FindIdentUnsafe := nil;
+end;
+
+function FindIdent(const S: TName): PIdentifier;
+VAR     r : PIdentifier;
+begin
+        r := FindIdentUnsafe(S);
+        if r = nil then Error('Unknown identifier: ' + S);
+        FindIdent := r;
+end;
+
+procedure DisposeAll;
+var
+  i, j: Integer;
+begin
+{ Dispose dynamically allocated parameter data }
+for i := 1 to NumIdent do
+  if Ident[i].Kind in [PROC, FUNC] then
+    for j := 1 to Ident[i].NumParams do
+      Dispose(Ident[i].Param[j]);
+
+{ Dispose dynamically allocated field data }
+for i := 1 to NumTypes do
+  if Types[i].TypeKind = RECORDTYPE then
+    for j := 1 to Types[i].NumFields do
+      Dispose(Types[i].Field[j]);
+end;
+
+
+procedure Error(const Msg: string);
+begin
+        WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
+        DisposeAll;
+        Close(InFile);
+        Close(OutFile);
+        Halt(1);
 end;
 
 END.

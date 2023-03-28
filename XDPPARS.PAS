@@ -19,9 +19,8 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.}
-{$I-}
-{$MODE DELPHI}
-// ----- PARSER -----
+{$I-,R-,S-}
+{ ----- PARSER ----- }
 UNIT xdppars;
 
 INTERFACE
@@ -621,7 +620,7 @@ begin
         if PIdent^.Kind <> VARIABLE then
                 Error('Variable expected but ' + Tok.Name + ' found');
 
-        PushVarPtr(PIdent^.Value, PIdent.Scope, BlockStackTop - PIdent^.NestingLevel);
+        PushVarPtr(PIdent^.Value, PIdent^.Scope, BlockStackTop - PIdent^.NestingLevel);
         ValType := PIdent^.DataType;
 
 
@@ -1445,13 +1444,13 @@ procedure CompileBlock(BlockIdent: PIdentifier);
 var
   NameTok, ProcFuncTok: TToken;
   IdentInListName: array [1..MAXPARAMS] of TName;
-  LocalDataSize, ParamDataSize: Integer;
+  LocalDataSize, ParamDataSize: LongInt;
   NumIdentInList, IdentInListIndex, ParamIndex, FieldIndex, TypeIndex: Integer;
   ConstVal: TConst;
   ExitLoop: Boolean;
   ListPassMethod: Byte;
   VarType, ConstValType: Byte;
-  ForwardIdent, PIdent : PIdentifier;
+  newIdent, ForwardIdent, PIdent : PIdentifier;
 
   procedure DeclareId(const Name: TName; Kind: Byte; TotalNumParams: Integer; DataType: Byte; PassMethod: Byte; ConstValue: LongInt; FracConstValue: Single; PredefIndex: Byte);
   var
@@ -1465,54 +1464,51 @@ var
   if i <> nil then
      if i^.Block = BlockStack[BlockStackTop] then Error('Duplicate identifier: ' + Name);
 
-  Inc(NumIdent);
-  Ident[NumIdent].Name := Name;
-  Ident[NumIdent].Kind := Kind;
-  Ident[NumIdent].Scope := Scope;
-  Ident[NumIdent].DataType := DataType;
-  Ident[NumIdent].Block := BlockStack[BlockStackTop];
-  Ident[NumIdent].NestingLevel := BlockStackTop;
-  Ident[NumIdent].NumParams := 0;
-  Ident[NumIdent].PassMethod := PassMethod;
-  Ident[NumIdent].IsUnresolvedForward := FALSE;
-  Ident[NumIdent].hash := strhash(name);
+  newIdent := CreateIdent(Name);
+  newIdent^.Kind := Kind;
+  newIdent^.Scope := Scope;
+  newIdent^.DataType := DataType;
+  newIdent^.Block := BlockStack[BlockStackTop];
+  newIdent^.NestingLevel := BlockStackTop;
+  newIdent^.NumParams := 0;
+  newIdent^.PassMethod := PassMethod;
+  newIdent^.IsUnresolvedForward := FALSE;
   
   case Kind of
     PROC, FUNC:
       if PredefIndex = 0 then
-        Ident[NumIdent].Value := CodeSize                                // Routine entry point address
+        newIdent^.Value := CodeSize                                // Routine entry point address
       else
-        Ident[NumIdent].PredefIndex := PredefIndex;                      // Predefined routine index
+        newIdent^.PredefIndex := PredefIndex;                      // Predefined routine index
 
     VARIABLE:
       if (Pass = CALLDETERMPASS) or BlockIsNotDead[BlockStack[BlockStackTop]] then
         case Scope of
           GLOBAL:
             begin
-            Ident[NumIdent].Value := VarDataOrigin + GlobalDataSize;     // Variable address
+            newIdent^.Value := VarDataOrigin + GlobalDataSize;     // Variable address
             GlobalDataSize := GlobalDataSize + TypeSize(DataType);
             end;// else
 
           LOCAL:
-            if TotalNumParams > 0 then
-              begin
+            if TotalNumParams > 0 then begin
               ParamDataSize := ParamDataSize + SizeOf(LongInt);                                 // Parameters always occupy 4 bytes each
-              Ident[NumIdent].Value := (3 + TotalNumParams) * SizeOf(LongInt) - ParamDataSize;  // Parameter offset from bp (>0); the last (hidden) parameter is the static link
+              newIdent^.Value := (3 + TotalNumParams) * SizeOf(LongInt) - ParamDataSize;  // Parameter offset from bp (>0); the last (hidden) parameter is the static link
               end
             else
               begin
-              Ident[NumIdent].Value := -LocalDataSize - TypeSize(DataType);                     // Local variable offset from bp (<0)
+              newIdent^.Value := -LocalDataSize - TypeSize(DataType);                     // Local variable offset from bp (<0)
               LocalDataSize := LocalDataSize + TypeSize(DataType);
               end;
         end// case
       else
-        Ident[NumIdent].Value := 0;
+        newIdent^.Value := 0;
 
     CONSTANT:
       if Types[DataType].TypeKind = REALTYPE then
-        Ident[NumIdent].FracValue := FracConstValue                     // Real constant value
+        newIdent^.FracValue := FracConstValue                     // Real constant value
       else
-        Ident[NumIdent].Value := ConstValue;                            // Ordinal constant value
+        newIdent^.Value := ConstValue;                            // Ordinal constant value
 
   end;// case
 
@@ -1625,75 +1621,70 @@ var
 
 // DeclareId
 begin
-Inc(BlockStackTop);
+        Inc(BlockStackTop);
 
-if BlockIdent = nil then
-  BlockStack[BlockStackTop] := 1
-else
-  BlockStack[BlockStackTop] := BlockIdent^.ProcAsBlock;
+        if BlockIdent = nil then BlockStack[BlockStackTop] := 1
+        else BlockStack[BlockStackTop] := BlockIdent^.ProcAsBlock;
 
-ParamDataSize := 0;
-LocalDataSize := 0;
+        ParamDataSize := 0;
+        LocalDataSize := 0;
 
-if BlockStack[BlockStackTop] = 1 then             // Main program
-  begin
-  DeclarePredefinedTypes;
-  DeclarePredefinedIdents;
-  GenerateProgramProlog;
-  end
-else
-  begin
-  // DeclareId parameters like local variables
-  for ParamIndex := 1 to BlockIdent^.NumParams do
-    DeclareId(BlockIdent^.Param[ParamIndex]^.Name,
-            VARIABLE,
-            BlockIdent^.NumParams,
-            BlockIdent^.Param[ParamIndex]^.DataType,
-            BlockIdent^.Param[ParamIndex]^.PassMethod,
-            0,
-            0.0,
-            0);
+        if BlockStack[BlockStackTop] = 1 then begin
+                // Main program
+                DeclarePredefinedTypes;
+                DeclarePredefinedIdents;
+                GenerateProgramProlog;
+        end else begin
+                // DeclareId parameters like local variables
+                for ParamIndex := 1 to BlockIdent^.NumParams do
+                        DeclareId(BlockIdent^.Param[ParamIndex]^.Name,
+                                VARIABLE,
+                                BlockIdent^.NumParams,
+                                BlockIdent^.Param[ParamIndex]^.DataType,
+                                BlockIdent^.Param[ParamIndex]^.PassMethod,
+                                0,
+                                0.0,
+                                0);
 
-  // Allocate Result variable if the current block is a function
-  if BlockIdent^.Kind = FUNC then DeclareId('RESULT', VARIABLE, 0, BlockIdent^.DataType, VALPASSING, 0, 0.0, 0);
-  end;// else
+                // Allocate Result variable if the current block is a function
+                if BlockIdent^.Kind = FUNC then DeclareId('RESULT', VARIABLE,
+                        0, BlockIdent^.DataType, VALPASSING, 0, 0.0, 0);
+                end;// else
 
-GenerateDeclarationProlog;
+                GenerateDeclarationProlog;
 
 
-while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
-  begin
-  if Tok.Kind = CONSTTOK then
-    begin
-    NextTok;
-    repeat
-      AssertIdent;
+                while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do begin
+                        if Tok.Kind = CONSTTOK then begin
+                                NextTok;
+                                repeat
+                                        AssertIdent;
 
-      NameTok := Tok;
-      NextTok;
-      EatTok(EQTOK);
+                                        NameTok := Tok;
+                                        NextTok;
+                                        EatTok(EQTOK);
 
-      CompileConstExpression(ConstVal, ConstValType);
-      DeclareId(NameTok.Name, CONSTANT, 0, ConstValType, VALPASSING, ConstVal.Value, ConstVal.FracValue, 0);
+                                        CompileConstExpression(ConstVal, ConstValType);
+                                        DeclareId(NameTok.Name, CONSTANT,
+                                                0, ConstValType,
+                                                VALPASSING, ConstVal.Value,
+                                                ConstVal.FracValue, 0);
+                                        EatTok(SEMICOLONTOK);
+                                until Tok.Kind <> IDENTTOK;
 
-      EatTok(SEMICOLONTOK);
-    until Tok.Kind <> IDENTTOK;
-
-    end;// if CONSTTOK
-
-
-  if Tok.Kind = TYPETOK then
-    begin
-    NextTok;
-    repeat
-      AssertIdent;
-
-      NameTok := Tok;
-      NextTok;
-      EatTok(EQTOK);
-
-      CompileType(VarType);
-      DeclareId(NameTok.Name, USERTYPE, 0, VarType, VALPASSING, 0, 0.0, 0);
+                        end;// if CONSTTOK
+                        if Tok.Kind = TYPETOK then begin
+                                NextTok;
+                                repeat
+                                        AssertIdent;
+                                        NameTok := Tok;
+                                        NextTok;
+                                        EatTok(EQTOK);
+                                        CompileType(VarType);
+                                        DeclareId(NameTok.Name, USERTYPE,
+                                                0, VarType,
+                                                VALPASSING,
+                                                0, 0.0, 0);
 
       // Check if this type was forward-referenced
       for TypeIndex := 1 to NumTypes do
@@ -1712,15 +1703,14 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
           end;// if    
 
       EatTok(SEMICOLONTOK);
-    until Tok.Kind <> IDENTTOK;
+                                until Tok.Kind <> IDENTTOK;
 
     CheckForwardResolutions;
 
     end;// if TYPETOK
 
 
-  if Tok.Kind = VARTOK then
-    begin
+  if Tok.Kind = VARTOK then begin
     NextTok;
     repeat
       NumIdentInList := 0;
@@ -1754,8 +1744,7 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
     end;// if VARTOK
 
 
-  if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK] then
-    begin
+  if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK] then begin
     ProcFuncTok := Tok;
     NextTok;
 
@@ -1770,8 +1759,7 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
          ((ProcFuncTok.Kind = FUNCTIONTOK) and (ForwardIdent^.Kind <> FUNC)) then
        ForwardIdent := nil;                                      // Found an identifier of another kind or scope, or it is already resolved
 
-    if ForwardIdent = nil then
-      begin
+    if ForwardIdent = nil then begin
 
       if ProcFuncTok.Kind = PROCEDURETOK then
         DeclareId(Tok.Name, PROC, 0, 0, VALPASSING, 0, 0.0, 0)
@@ -1780,20 +1768,18 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
 
       NextTok;
 
-      if Tok.Kind = OPARTOK then                                    // Formal parameter list found
-        begin
+      if Tok.Kind = OPARTOK then begin
+      // Formal parameter list found
         NextTok;
         repeat
           NumIdentInList := 0;
           ListPassMethod := VALPASSING;
 
-          if Tok.Kind = CONSTTOK then
-            begin
+          if Tok.Kind = CONSTTOK then begin
             ListPassMethod := CONSTPASSING;
             NextTok;
             end
-          else if Tok.Kind = VARTOK then
-            begin
+          else if Tok.Kind = VARTOK then begin
             ListPassMethod := VARPASSING;
             NextTok;
             end;
@@ -1830,16 +1816,16 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
 
           for IdentInListIndex := 1 to NumIdentInList do
             begin
-            Inc(Ident[NumIdent].NumParams);
+            Inc(LastIdent^.NumParams);
 
-            if Ident[NumIdent].NumParams > MAXPARAMS then
-              Error('Too many formal parameters in ' + Ident[NumIdent].Name);
+            if LastIdent^.NumParams > MAXPARAMS then
+              Error('Too many formal parameters in ' + LastIdent^.Name);
 
-            New(Ident[NumIdent].Param[Ident[NumIdent].NumParams]);
+            New(LastIdent^.Param[LastIdent^.NumParams]);
 
-            Ident[NumIdent].Param[Ident[NumIdent].NumParams]^.DataType   := VarType;
-            Ident[NumIdent].Param[Ident[NumIdent].NumParams]^.PassMethod := ListPassMethod;
-            Ident[NumIdent].Param[Ident[NumIdent].NumParams]^.Name       := IdentInListName[IdentInListIndex];
+            LastIdent^.Param[LastIdent^.NumParams]^.DataType   := VarType;
+            LastIdent^.Param[LastIdent^.NumParams]^.PassMethod := ListPassMethod;
+            LastIdent^.Param[LastIdent^.NumParams]^.Name       := IdentInListName[IdentInListIndex];
             end;// for
 
           ExitLoop := FALSE;
@@ -1852,10 +1838,9 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
         EatTok(CPARTOK);
         end;// if Tok.Kind = OPARTOR
 
-      Ident[NumIdent].DataType := 0;
+      LastIdent^.DataType := 0;
 
-      if ProcFuncTok.Kind = FUNCTIONTOK then
-        begin
+      if ProcFuncTok.Kind = FUNCTIONTOK then begin
         EatTok(COLONTOK);
 
         // Only type names are allowed for function results
@@ -1870,7 +1855,7 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
         if Types[VarType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
           Error('Structured result is not allowed');
 
-        Ident[NumIdent].DataType := VarType;
+        LastIdent^.DataType := VarType;
         end;// if IsNestedFunction
 
       end// if ForwardIdentIndex = 0
@@ -1883,22 +1868,18 @@ while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do
     if (ForwardIdent = nil) and (Tok.Kind = IDENTTOK) and (Tok.Name = 'FORWARD') then  // Forward declaration
       begin
       Inc(NumBlocks);
-      Ident[NumIdent].ProcAsBlock := NumBlocks;
-      Ident[NumIdent].IsUnresolvedForward := TRUE;
+      LastIdent^.ProcAsBlock := NumBlocks;
+      LastIdent^.IsUnresolvedForward := TRUE;
       GenerateForwardReference;
       NextTok;
-      end
-    else
-      begin
-
-      if ForwardIdent = nil then                                                       // New declaration
-        begin
+      end else begin
+      if ForwardIdent = nil then begin
+      // New declaration
         Inc(NumBlocks);
-        Ident[NumIdent].ProcAsBlock := NumBlocks;
-        CompileBlock(@Ident[NumIdent]);
-        end
-      else                                                                                // Forward declaration resolution
-        begin
+        LastIdent^.ProcAsBlock := NumBlocks;
+        CompileBlock(LastIdent);
+        end else begin
+        // Forward declaration resolution
         GenerateForwardResolution(ForwardIdent);
         CompileBlock(ForwardIdent);
         ForwardIdent^.IsUnresolvedForward := FALSE;
@@ -1919,8 +1900,7 @@ if BlockStack[BlockStackTop] <> 1 then
 CompileCompoundStatement;
 
 // If function, return Result value via the EDX register
-if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then
-  begin
+if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then begin
   PushVarPtr(FindIdent('RESULT')^.Value, LOCAL, 0);
   DerefPtr(BlockIdent^.DataType);
   SaveStackTop;
@@ -1928,39 +1908,37 @@ if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then
 
 if BlockStack[BlockStackTop] = 1 then          // Main program
   GenerateProgramEpilog
-else
-  begin
+else begin
   GenerateStackFrameEpilog;
   GenerateReturn(BlockIdent^.NumParams * SizeOf(LongInt));
   end;
 
 // Delete local identifiers and types from the tables to save space
-while (NumIdent > 0) and (Ident[NumIdent].Block = BlockStack[BlockStackTop]) do begin
+while (LastIdent <> nil) and (LastIdent^.Block = BlockStack[BlockStackTop]) do begin
   // If procedure or function, delete parameters first
-  if Ident[NumIdent].Kind in [PROC, FUNC] then begin
-    if Ident[NumIdent].IsUnresolvedForward then
-      Error('Unresolved forward declaration of ' + Ident[NumIdent].Name);
+  if LastIdent^.Kind in [PROC, FUNC] then begin
+    if LastIdent^.IsUnresolvedForward then
+      Error('Unresolved forward declaration of ' + LastIdent^.Name);
 
-    for ParamIndex := 1 to Ident[NumIdent].NumParams do
-      Dispose(Ident[NumIdent].Param[ParamIndex]);
+    for ParamIndex := 1 to LastIdent^.NumParams do
+      Dispose(LastIdent^.Param[ParamIndex]);
     end;  
 
-  // Delete identifier itself
-  Dec(NumIdent);
-  end;
+        // Delete identifier itself
+        KillLastIdent;
+        end;
   
-while (NumTypes > 0) and (Types[NumTypes].Block = BlockStack[BlockStackTop]) do
-  begin
-  // If record, delete fields first
-  if Types[NumTypes].TypeKind = RECORDTYPE then
-    for FieldIndex := 1 to Types[NumTypes].NumFields do
-      Dispose(Types[NumTypes].Field[FieldIndex]);
+        while (NumTypes > 0) and (Types[NumTypes].Block = BlockStack[BlockStackTop]) do begin
+                // If record, delete fields first
+                if Types[NumTypes].TypeKind = RECORDTYPE then
+                        for FieldIndex := 1 to Types[NumTypes].NumFields do
+                        Dispose(Types[NumTypes].Field[FieldIndex]);
 
-  // Delete type itself
-  Dec(NumTypes);
-  end;    
+                // Delete type itself
+                Dec(NumTypes);
+        end;    
 
-Dec(BlockStackTop);
+        Dec(BlockStackTop);
 end;// CompileBlock
 
 

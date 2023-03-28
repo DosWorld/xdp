@@ -19,9 +19,8 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.}
-{$I-}
-{$MODE DELPHI}
-// ----- CODE GENERATOR -----
+{$I-,R-,S-}
+{ ----- CODE GENERATOR ----- }
 UNIT xdpgen;
 
 INTERFACE
@@ -222,17 +221,18 @@ end;
 
 procedure GetArrayElementPtr(ArrType: Byte);
 
-  function Log2(x: LongWord): ShortInt;
+  function log2(x: LongWord): ShortInt;
   var
-    i: Integer;
+    i : Integer;
+    r : ShortInt;
   begin
-  Result := -1;
+  r := -1;
   i := 0;
-  while (i <= 31) and (Result = -1) do
-    begin
-    if x = 1 shl i then Result := i;
+  while i <= 31 do begin
+    if x = (1 shl i) then begin r := i; break; end;
     Inc(i);
     end;
+    log2 := r;
   end;
 
 var
