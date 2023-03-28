@@ -1,0 +1,15 @@
+all: xdp.exe
+
+xdp.exe: XDP.PAS XDPGEN.PAS XDPGLOB.PAS XDPOPT.PAS XDPPARS.PAS XDPSCAN.PAS XDPUTILS.PAS
+        fpc -O4 XDP.PAS
+
+examp:
+        for %%f in (samples\*.pas) do xdp %%f %1
+
+clean:
+        del *.ppu
+        del *.o
+        del *.bak
+        del xdp.exe
+
+

@@ -10,7 +10,7 @@ The compiler supports VGA graphics, floating-point arithmetic, etc.
 
 ## Changes from original version
 * Recompiled with FPC
-* system.pas renamed in xdpsys.pas
+* system.pas renamed in _system.pas
 * All included files ($I file} searches, also, in folder with xdp.exe
 * Support LFN (long file name) for Runtime (ReWrite, Reset, DeleteFile).
 * Generation changed to EXE (small memory model)
