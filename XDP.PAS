@@ -1,6 +1,7 @@
 { MIT No Attribution
 
 Copyright 2010 Vasiliy Tereshkov
+Copyright 2023 DosWorld
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -45,21 +46,6 @@ begin
         ExeHeader.sign := MZ_SIGN;
         ExeHeader.sp := $FFFE;
 end;
-
-procedure ChangeExt(const InStr, Ext: TString; var OutStr: TString);
-var     i, DotPos: Integer;
-begin
-        i := Length(InStr);
-        DotPos := 0;
-        
-        while (i > 0) and (DotPos = 0) do begin
-                if InStr[i] = '.' then DotPos := i;
-                Dec(i);
-        end;
-        
-        if DotPos > 0 then OutStr := Copy(InStr, 1, DotPos) + Ext
-        else OutStr := InStr + Ext;
-end;  
 
 var     BlockIndex: Integer;
 
