@@ -150,7 +150,7 @@ end;
 
 procedure KillLastIdent;
 begin
-        IF NumIdent > 0 THEN Inc(NumIdent);
+        IF NumIdent > 0 THEN Dec(NumIdent);
 end;
 
 function FindIdentUnsafe(const S: TName): PIdentifier;

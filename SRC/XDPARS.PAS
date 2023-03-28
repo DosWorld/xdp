@@ -37,9 +37,6 @@ procedure CompileExpression(var ValType: Byte); forward;
 procedure CompileStatement; forward;
 procedure CompileType(var DataType: Byte); forward;
 
-
-
-
 procedure CompileConstFactor(var ConstVal: TConst; var ConstValType: Byte);
 var     PIdent : PIdentifier;
 begin
@@ -89,11 +86,9 @@ end;// CompileConstFactor
 
 
 procedure CompileConstTerm(var ConstVal: TConst; var ConstValType: Byte);
-var
-  OpTok: TToken;
-  RightConstVal: TConst;
-  RightConstValType: Byte;
-
+var     OpTok             : TToken;
+        RightConstVal     : TConst;
+        RightConstValType : Byte;
 begin
         CompileConstFactor(ConstVal, ConstValType);
         while Tok.Kind in [MULTOK, DIVTOK, IDIVTOK, MODTOK, SHLTOK, SHRTOK, ANDTOK] do begin
@@ -111,7 +106,7 @@ begin
                         RightConstValType := REALTYPEINDEX;
                 end;
 
-                // Special case: real division of two integers
+                { Special case: real division of two integers }
                 if (OpTok.Kind = DIVTOK) and ConversionIsPossible(ConstValType, REALTYPEINDEX) and ConversionIsPossible(RightConstValType, REALTYPEINDEX) then begin
                         ConstVal.FracValue := ConstVal.Value;
                         RightConstVal.FracValue := RightConstVal.Value;
@@ -122,85 +117,73 @@ begin
                 ConstValType := GetCompatibleType(ConstValType, RightConstValType);
                 CheckOperator(OpTok.Kind, ConstValType);
 
-  if Types[ConstValType].TypeKind = REALTYPE then        // Real constants
+  if Types[ConstValType].TypeKind = REALTYPE then
     case OpTok.Kind of
       MULTOK:  ConstVal.FracValue := ConstVal.FracValue * RightConstVal.FracValue;
       DIVTOK:  if RightConstVal.FracValue <> 0 then
                  ConstVal.FracValue := ConstVal.FracValue / RightConstVal.FracValue
-               else
-                 Error('Constant division by zero');
-    end
-  else                                                    // Integer constants
+               else Error('Constant division by zero');
+  end else
     case OpTok.Kind of             
-      MULTOK:  ConstVal.Value := ConstVal.Value  *  RightConstVal.Value;
+      MULTOK:  ConstVal.Value := ConstVal.Value * RightConstVal.Value;
       IDIVTOK: if RightConstVal.Value <> 0 then
                  ConstVal.Value := ConstVal.Value div RightConstVal.Value
-               else
-                 Error('Constant division by zero');  
+               else  Error('Constant division by zero');  
       MODTOK:  if RightConstVal.Value <> 0 then
                  ConstVal.Value := ConstVal.Value mod RightConstVal.Value
-               else
-                 Error('Constant division by zero');
+               else Error('Constant division by zero');
       SHLTOK:  ConstVal.Value := ConstVal.Value shl RightConstVal.Value;
       SHRTOK:  ConstVal.Value := ConstVal.Value shr RightConstVal.Value;
       ANDTOK:  ConstVal.Value := ConstVal.Value and RightConstVal.Value;
     end;
 
-  end;// while
-
-end;// CompileConstTerm
+        end;
+end;
 
 
 
 procedure CompileSimpleConstExpression(var ConstVal: TConst; var ConstValType: Byte);
-var
-  UnaryOpTok, OpTok: TToken;
-  RightConstVal: TConst;
-  RightConstValType: Byte;
-
+var     UnaryOpTok, OpTok : TToken;
+        RightConstVal     : TConst;
+        RightConstValType : Byte;
 begin
-UnaryOpTok := Tok;
-if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then
-  NextTok;
+        UnaryOpTok := Tok;
+        if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then NextTok;
 
-CompileConstTerm(ConstVal, ConstValType);
+        CompileConstTerm(ConstVal, ConstValType);
 
-if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then
-  CheckOperator(UnaryOpTok.Kind, ConstValType);
+        if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then CheckOperator(UnaryOpTok.Kind, ConstValType);
 
-if UnaryOpTok.Kind = MINUSTOK then      // Unary minus
+        if UnaryOpTok.Kind = MINUSTOK then begin
+                if Types[ConstValType].TypeKind = REALTYPE then
+                        ConstVal.FracValue := -ConstVal.FracValue
+                else
+                        ConstVal.Value := -ConstVal.Value;
+        end;
+
+        while Tok.Kind in [PLUSTOK, MINUSTOK, ORTOK, XORTOK] do begin
+                OpTok := Tok;
+                NextTok;
+                CompileConstTerm(RightConstVal, RightConstValType);
+
+                if ConversionIsPossible(ConstValType, RightConstValType) then begin
+                        ConstVal.FracValue := ConstVal.Value;
+                        ConstValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightConstValType, ConstValType) then begin
+                        RightConstVal.FracValue := RightConstVal.Value;
+                        RightConstValType := REALTYPEINDEX;
+                end;  
+
+                ConstValType := GetCompatibleType(ConstValType, RightConstValType);
+                CheckOperator(OpTok.Kind, ConstValType);
+
   if Types[ConstValType].TypeKind = REALTYPE then
-    ConstVal.FracValue := -ConstVal.FracValue
-  else
-    ConstVal.Value := -ConstVal.Value;
-
-while Tok.Kind in [PLUSTOK, MINUSTOK, ORTOK, XORTOK] do
-  begin
-  OpTok := Tok;
-  NextTok;
-  CompileConstTerm(RightConstVal, RightConstValType);
-
-  // Try to convert integer to real
-  if ConversionIsPossible(ConstValType, RightConstValType) then
-    begin
-    ConstVal.FracValue := ConstVal.Value;
-    ConstValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightConstValType, ConstValType) then
-    begin
-    RightConstVal.FracValue := RightConstVal.Value;
-    RightConstValType := REALTYPEINDEX;
-    end;  
-
-  ConstValType := GetCompatibleType(ConstValType, RightConstValType);
-  CheckOperator(OpTok.Kind, ConstValType);
-
-  if Types[ConstValType].TypeKind = REALTYPE then       // Real constants
     case OpTok.Kind of
       PLUSTOK:  ConstVal.FracValue := ConstVal.FracValue  +  RightConstVal.FracValue;
       MINUSTOK: ConstVal.FracValue := ConstVal.FracValue  -  RightConstVal.FracValue;
     end
-  else                                                  // Integer constants
+  else
     case OpTok.Kind of
       PLUSTOK:  ConstVal.Value := ConstVal.Value  +  RightConstVal.Value;
       MINUSTOK: ConstVal.Value := ConstVal.Value  -  RightConstVal.Value;
@@ -208,86 +191,74 @@ while Tok.Kind in [PLUSTOK, MINUSTOK, ORTOK, XORTOK] do
       XORTOK:   ConstVal.Value := ConstVal.Value xor RightConstVal.Value;
     end;
 
-  end;// while
+  end;
 
-end;// CompileSimpleConstExpression
+end;
 
 
 
 procedure CompileConstExpression(var ConstVal: TConst; var ConstValType: Byte);
-var
-  OpTok: TToken;
-  RightConstVal: TConst;
-  RightConstValType: Byte;
-  Yes: Boolean;
-
+var     OpTok             : TToken;
+        RightConstVal     : TConst;
+        RightConstValType : Byte;
+        Yes               : Boolean;
 begin
-Yes := FALSE;
-CompileSimpleConstExpression(ConstVal, ConstValType);
+        Yes := FALSE;
+        CompileSimpleConstExpression(ConstVal, ConstValType);
 
-if Tok.Kind in [EQTOK, NETOK, LTTOK, LETOK, GTTOK, GETOK] then
-  begin
-  OpTok := Tok;
-  NextTok;
-  CompileSimpleConstExpression(RightConstVal, RightConstValType);
+        if Tok.Kind in [EQTOK, NETOK, LTTOK, LETOK, GTTOK, GETOK] then begin
+                OpTok := Tok;
+                NextTok;
+                CompileSimpleConstExpression(RightConstVal, RightConstValType);
 
-  // Try to convert integer to real
-  if ConversionIsPossible(ConstValType, RightConstValType) then
-    begin
-    ConstVal.FracValue := ConstVal.Value;
-    ConstValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightConstValType, ConstValType) then
-    begin
-    RightConstVal.FracValue := RightConstVal.Value;
-    RightConstValType := REALTYPEINDEX;
-    end;
+                if ConversionIsPossible(ConstValType, RightConstValType) then begin
+                        ConstVal.FracValue := ConstVal.Value;
+                        ConstValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightConstValType, ConstValType) then begin
+                        RightConstVal.FracValue := RightConstVal.Value;
+                        RightConstValType := REALTYPEINDEX;
+                end;
 
-  GetCompatibleType(ConstValType, RightConstValType);
-  CheckOperator(OpTok.Kind, ConstValType);
+                GetCompatibleType(ConstValType, RightConstValType);
+                CheckOperator(OpTok.Kind, ConstValType);
 
-  if Types[ConstValType].TypeKind = REALTYPE then
-    case OpTok.Kind of
-      EQTOK: Yes := ConstVal.FracValue =  RightConstVal.FracValue;
-      NETOK: Yes := ConstVal.FracValue <> RightConstVal.FracValue;
-      LTTOK: Yes := ConstVal.FracValue <  RightConstVal.FracValue;
-      LETOK: Yes := ConstVal.FracValue <= RightConstVal.FracValue;
-      GTTOK: Yes := ConstVal.FracValue >  RightConstVal.FracValue;
-      GETOK: Yes := ConstVal.FracValue >= RightConstVal.FracValue;
-    end
-  else
-    case OpTok.Kind of
-      EQTOK: Yes := ConstVal.Value =  RightConstVal.Value;
-      NETOK: Yes := ConstVal.Value <> RightConstVal.Value;
-      LTTOK: Yes := ConstVal.Value <  RightConstVal.Value;
-      LETOK: Yes := ConstVal.Value <= RightConstVal.Value;
-      GTTOK: Yes := ConstVal.Value >  RightConstVal.Value;
-      GETOK: Yes := ConstVal.Value >= RightConstVal.Value;
-    end;
+                if Types[ConstValType].TypeKind = REALTYPE then
+                        case OpTok.Kind of
+                        EQTOK: Yes := ConstVal.FracValue =  RightConstVal.FracValue;
+                        NETOK: Yes := ConstVal.FracValue <> RightConstVal.FracValue;
+                        LTTOK: Yes := ConstVal.FracValue <  RightConstVal.FracValue;
+                        LETOK: Yes := ConstVal.FracValue <= RightConstVal.FracValue;
+                        GTTOK: Yes := ConstVal.FracValue >  RightConstVal.FracValue;
+                        GETOK: Yes := ConstVal.FracValue >= RightConstVal.FracValue;
+                end else case OpTok.Kind of
+                        EQTOK: Yes := ConstVal.Value =  RightConstVal.Value;
+                        NETOK: Yes := ConstVal.Value <> RightConstVal.Value;
+                        LTTOK: Yes := ConstVal.Value <  RightConstVal.Value;
+                        LETOK: Yes := ConstVal.Value <= RightConstVal.Value;
+                        GTTOK: Yes := ConstVal.Value >  RightConstVal.Value;
+                        GETOK: Yes := ConstVal.Value >= RightConstVal.Value;
+                end;
 
-  if Yes then ConstVal.Value := -1 else ConstVal.Value := 0;
+                if Yes then ConstVal.Value := -1 else ConstVal.Value := 0;
   
-  ConstValType := BOOLEANTYPEINDEX;
-  end;
+                ConstValType := BOOLEANTYPEINDEX;
+        end;
 
-end;// CompileConstExpression
-
-
+end;
 
 
 procedure CompilePredefinedProc(proc: Byte);
-var
-  DesignatorType, ExpressionType, ActualParamType: Byte;
-  InterruptNumber, ErrorCode: TConst;
-  ExitLoop: Boolean;
-  LibProcIdent: PIdentifier;
-  IsFirstParam, FileSpecified: Boolean;
+var     DesignatorType, ExpressionType, ActualParamType: Byte;
+        InterruptNumber, ErrorCode: TConst;
+        ExitLoop     : Boolean;
+        LibProcIdent : PIdentifier;
+        IsFirstParam, FileSpecified: Boolean;
 begin
-NextTok;
+        NextTok;
 
 case proc of
-  INCPROC, DECPROC:
-    begin
+  INCPROC, DECPROC: begin
     EatTok(OPARTOK);
     AssertIdent;
     CompileDesignator(DesignatorType);
@@ -296,20 +267,16 @@ case proc of
     EatTok(CPARTOK);
     end;
 
-  READPROC, READLNPROC:
-    begin
+  READPROC, READLNPROC: begin
     FileSpecified := FALSE;              // By default, use standard output device, i.e. console
     IsFirstParam := TRUE;
 
-    if Tok.Kind = OPARTOK then
-      begin
+    if Tok.Kind = OPARTOK then begin
       NextTok;
       repeat
         // 1st argument - file handle
-        if FileSpecified then
-          RestoreFileHandle
-        else
-          PushConst(0);                  // Console handle
+        if FileSpecified then RestoreFileHandle
+        else PushConst(0);
 
         // 2nd argument - string stream handle
         PushConst(0);
@@ -317,34 +284,31 @@ case proc of
         // 3rd argument - designator
         CompileDesignator(DesignatorType);
 
-        if Types[DesignatorType].TypeKind = TEXTTYPE then           // Text file handle
-          begin
-          if not IsFirstParam then
-            Error('Incompatible types');
+        if Types[DesignatorType].TypeKind = TEXTTYPE then begin
+          if not IsFirstParam then Error('Incompatible types');
           FileSpecified := TRUE;
           DerefPtr(DesignatorType);
           SaveFileHandle;
           end
-        else                                                        // Any output expression
+        else
           begin
           LibProcIdent := nil;
 
           if (Types[DesignatorType].TypeKind in IntegerTypes) or
             ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
              (Types[Types[DesignatorType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdent := FindIdent('READINT')                 // Integer or boolean argument
+                LibProcIdent := FindIdent('READINT')
           else if (Types[DesignatorType].TypeKind = CHARTYPE) or
             ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
              (Types[Types[DesignatorType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdent := FindIdent('READCH')                  // Character argument
+                LibProcIdent := FindIdent('READCH')
           else if Types[DesignatorType].TypeKind = REALTYPE then
-                LibProcIdent := FindIdent('READREAL')                // Real argument
+                LibProcIdent := FindIdent('READREAL')
           else if (Types[DesignatorType].TypeKind = ARRAYTYPE) and (Types[DesignatorType].BaseType = CHARTYPEINDEX) then
-                LibProcIdent := FindIdent('READSTRING')              // String argument
-          else
-            Error('Incompatible types');
+                LibProcIdent := FindIdent('READSTRING')
+          else Error('Incompatible types');
 
-          // Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator
+          { Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator }
           if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
           GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
           end; // else
@@ -352,10 +316,8 @@ case proc of
         IsFirstParam := FALSE;
 
         ExitLoop := FALSE;
-        if Tok.Kind = COMMATOK then
-          NextTok
-        else
-          ExitLoop := TRUE;
+        if Tok.Kind = COMMATOK then NextTok
+        else ExitLoop := TRUE;
       until ExitLoop;
       EatTok(CPARTOK);
       end; // if OPARTOR
@@ -365,10 +327,8 @@ case proc of
       LibProcIdent := FindIdent('READNEWLINE');
       
       // 1st argument - file handle
-      if FileSpecified then
-        RestoreFileHandle
-      else
-        PushConst(0);   // Console handle
+      if FileSpecified then RestoreFileHandle
+      else PushConst(0);
 
       // 2nd argument - string stream handle
       PushConst(0);
@@ -377,23 +337,19 @@ case proc of
       GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
       end;
 
-    end;// READPROC, READLNPROC
+    end;
 
 
-  WRITEPROC, WRITELNPROC:
-    begin
-    FileSpecified := FALSE;              // By default, use standard output device, i.e. console
+  WRITEPROC, WRITELNPROC: begin
+    FileSpecified := FALSE;
     IsFirstParam := TRUE;
 
-    if Tok.Kind = OPARTOK then
-      begin
+    if Tok.Kind = OPARTOK then begin
       NextTok;
-      repeat
+      WHILE TRUE DO BEGIN
         // 1st argument - file handle
-        if FileSpecified then
-          RestoreFileHandle
-        else
-          PushConst(0);                  // Console handle
+        if FileSpecified then RestoreFileHandle
+        else PushConst(0);
 
         // 2nd argument - string stream handle
         PushConst(0);
@@ -401,64 +357,53 @@ case proc of
         // 3rd argument - expression
         CompileExpression(ExpressionType);
 
-        if Types[ExpressionType].TypeKind = TEXTTYPE then           // Text file handle
-          begin
-          if not IsFirstParam then
-            Error('Incompatible types');
+        if Types[ExpressionType].TypeKind = TEXTTYPE then begin
+          if not IsFirstParam then Error('Incompatible types');
           FileSpecified := TRUE;
           SaveFileHandle;
           end
-        else                                                        // Any output expression
-          begin
+        else begin
           LibProcIdent := nil;
           
           if (Types[ExpressionType].TypeKind in IntegerTypes) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdent := FindIdent('WRITEINT')                 // Integer or boolean argument
+                LibProcIdent := FindIdent('WRITEINT')
           else if (Types[ExpressionType].TypeKind = BOOLEANTYPE) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind = BOOLEANTYPE)) then
-                LibProcIdent := FindIdent('WRITEBOOLEAN')             // Boolean argument
+                LibProcIdent := FindIdent('WRITEBOOLEAN')
           else if (Types[ExpressionType].TypeKind = CHARTYPE) or
             ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
              (Types[Types[ExpressionType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdent := FindIdent('WRITECH')                  // Character argument
+                LibProcIdent := FindIdent('WRITECH')
           else if Types[ExpressionType].TypeKind = REALTYPE then
-                LibProcIdent := FindIdent('WRITEREAL')                // Real argument
+                LibProcIdent := FindIdent('WRITEREAL')
           else if Types[ExpressionType].TypeKind = POINTERTYPE then
-                LibProcIdent := FindIdent('WRITEPOINTER')             // Pointer argument
+                LibProcIdent := FindIdent('WRITEPOINTER')
           else if (Types[ExpressionType].TypeKind = ARRAYTYPE) and (Types[ExpressionType].BaseType = CHARTYPEINDEX) then
-                LibProcIdent := FindIdent('WRITESTRING')              // String argument
-          else
-            Error('Incompatible types');
+                LibProcIdent := FindIdent('WRITESTRING')
+          else Error('Incompatible types');
 
-          // Call the specific output subroutine. Interface: FileHandle; StreamHandle; Expression
+          { Call the specific output subroutine. Interface: FileHandle; StreamHandle; Expression }
           if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
           GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
-          end; // else
+          end;
 
         IsFirstParam := FALSE;
 
-        ExitLoop := FALSE;
-        if Tok.Kind = COMMATOK then
-          NextTok
-        else
-          ExitLoop := TRUE;
-      until ExitLoop;
+        if Tok.Kind = COMMATOK then NextTok else BREAK;
+      END;
       EatTok(CPARTOK);
       end; // if OPARTOR
       
     // Add CR+LF, if necessary
-    if proc = WRITELNPROC then
-      begin
+    if proc = WRITELNPROC then begin
       LibProcIdent := FindIdent('WRITENEWLINE');
       
       // 1st argument - file handle
-      if FileSpecified then
-        RestoreFileHandle
-      else
-        PushConst(0);   // Console handle
+      if FileSpecified then RestoreFileHandle
+      else PushConst(0);
 
       // 2nd argument - string stream handle
       PushConst(0);
@@ -467,11 +412,8 @@ case proc of
       GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
       end;
 
-    end;// WRITEPROC, WRITELNPROC
-    
-
-  INPPROC, OUTPPROC:
-    begin
+    end;
+  INPPROC, OUTPPROC: begin
     EatTok(OPARTOK);
     CompileExpression(ExpressionType);
     GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);

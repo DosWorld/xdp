@@ -1,2 +1,3 @@
-for %%f in (*.pas) do xdp %%f %1
+@del *.exe
+for %%f in (*.pas) do ..\xdpc %%f %1
 
