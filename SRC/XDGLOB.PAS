@@ -82,10 +82,6 @@ CodePosStackTop,
 Pass, UnitStackTop, Line: Integer;
 CodeSize, NumStaticStrChars, GlobalDataSize : LongInt;
 
-ProgramName : TString;
-
-InFile: file of Char;
-
 syspath : string;
 
 procedure ZeroAll;
@@ -99,6 +95,8 @@ procedure DisposeAll;
 procedure Error(const Msg: string);
 
 IMPLEMENTATION
+
+USES xdscan;
 
 VAR
 Ident    : array [1..MAXIDENTS] of TIdentifier;
@@ -128,6 +126,16 @@ BEGIN
         FOR i := 1 TO LENGTH(s) DO h := h * 33 + ORD(s[i]);
         strhash := h;
 END;
+
+procedure DisposeIdent(PIdent : PIdentifier);
+var     j : integer;
+begin
+        if PIdent = nil then exit;
+        if PIdent^.Kind in [PROC, FUNC] then
+                for j := 1 to PIdent^.NumParams do
+                        Dispose(PIdent^.Param[j]);
+        Dispose(PIdent);
+end;
 
 function CreateIdent(S : String): PIdentifier;
 begin
@@ -179,8 +187,7 @@ begin
 end;
 
 procedure DisposeAll;
-var
-  i, j: Integer;
+var     i, j: Integer;
 begin
 { Dispose dynamically allocated parameter data }
 for i := 1 to NumIdent do
@@ -200,7 +207,7 @@ procedure Error(const Msg: string);
 begin
         WriteLn(UnitStack[UnitStackTop].FileName, '(', Line, '): ', Msg);
         DisposeAll;
-        Close(InFile);
+        DestroyScanner;
         Halt(1);
 end;
 

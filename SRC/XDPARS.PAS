@@ -69,7 +69,6 @@ begin
                 NextTok;
         end;
         OPARTOK: begin
-                // Expression in parentheses expected
                 NextTok;
                 CompileConstExpression(ConstVal, ConstValType);
                 EatTok(CPARTOK);
@@ -79,8 +78,8 @@ begin
                 ConstVal.Value := not ConstVal.Value;
         end; 
         else Error('Expression expected but ' + GetSpelling(Tok) + ' found');
-        end;// case
-end;// CompileConstFactor
+        end;
+end;
 
 
 
@@ -96,7 +95,6 @@ begin
                 NextTok;
                 CompileConstFactor(RightConstVal, RightConstValType);
 
-                // Try to convert integer to real
                 if ConversionIsPossible(ConstValType, RightConstValType) then begin
                         ConstVal.FracValue := ConstVal.Value;
                         ConstValType := REALTYPEINDEX;
@@ -251,48 +249,42 @@ end;
 procedure CompilePredefinedProc(proc: Byte);
 var     DesignatorType, ExpressionType, ActualParamType: Byte;
         InterruptNumber, ErrorCode: TConst;
-        ExitLoop     : Boolean;
         LibProcIdent : PIdentifier;
         IsFirstParam, FileSpecified: Boolean;
 begin
         NextTok;
 
-case proc of
-  INCPROC, DECPROC: begin
-    EatTok(OPARTOK);
-    AssertIdent;
-    CompileDesignator(DesignatorType);
-    GetCompatibleType(DesignatorType, INTEGERTYPEINDEX);
-    GenerateIncDec(proc, TypeSize(DesignatorType));
-    EatTok(CPARTOK);
-    end;
+        case proc of
+        INCPROC, DECPROC: begin
+                EatTok(OPARTOK);
+                AssertIdent;
+                CompileDesignator(DesignatorType);
+                GetCompatibleType(DesignatorType, INTEGERTYPEINDEX);
+                GenerateIncDec(proc, TypeSize(DesignatorType));
+                EatTok(CPARTOK);
+        end;
+        READPROC, READLNPROC: begin
+                FileSpecified := FALSE;
+                IsFirstParam := TRUE;
 
-  READPROC, READLNPROC: begin
-    FileSpecified := FALSE;              // By default, use standard output device, i.e. console
-    IsFirstParam := TRUE;
-
-    if Tok.Kind = OPARTOK then begin
-      NextTok;
-      repeat
-        // 1st argument - file handle
-        if FileSpecified then RestoreFileHandle
-        else PushConst(0);
-
-        // 2nd argument - string stream handle
-        PushConst(0);
-
-        // 3rd argument - designator
-        CompileDesignator(DesignatorType);
-
-        if Types[DesignatorType].TypeKind = TEXTTYPE then begin
-          if not IsFirstParam then Error('Incompatible types');
-          FileSpecified := TRUE;
-          DerefPtr(DesignatorType);
-          SaveFileHandle;
-          end
-        else
-          begin
-          LibProcIdent := nil;
+                if Tok.Kind = OPARTOK then begin
+                        NextTok;
+                        WHILE TRUE DO BEGIN
+                                // 1st argument - file handle
+                                if FileSpecified then RestoreFileHandle
+                                else PushConst(0);
+                                // 2nd argument - string stream handle
+                                PushConst(0);
+                                // 3rd argument - designator
+                                CompileDesignator(DesignatorType);
+        
+                                if Types[DesignatorType].TypeKind = TEXTTYPE then begin
+                                        if not IsFirstParam then Error('Incompatible types');
+                                        FileSpecified := TRUE;
+                                        DerefPtr(DesignatorType);
+                                        SaveFileHandle;
+                                end else begin
+                                        LibProcIdent := nil;
 
           if (Types[DesignatorType].TypeKind in IntegerTypes) or
             ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
@@ -311,42 +303,37 @@ case proc of
           { Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator }
           if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
           GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
-          end; // else
-
-        IsFirstParam := FALSE;
-
-        ExitLoop := FALSE;
-        if Tok.Kind = COMMATOK then NextTok
-        else ExitLoop := TRUE;
-      until ExitLoop;
-      EatTok(CPARTOK);
-      end; // if OPARTOR
+                                end;
+        
+                                IsFirstParam := FALSE;
+                                if Tok.Kind = COMMATOK then NextTok
+                                else BREAK;
+                        END;
+                        EatTok(CPARTOK);
+                end; // if OPARTOR
       
     // Add CR+LF, if necessary
-    if proc = READLNPROC then begin
-      LibProcIdent := FindIdent('READNEWLINE');
-      
-      // 1st argument - file handle
-      if FileSpecified then RestoreFileHandle
-      else PushConst(0);
+                if proc = READLNPROC then begin
+                        LibProcIdent := FindIdent('READNEWLINE');
+                        // 1st argument - file handle
+                        if FileSpecified then RestoreFileHandle
+                        else PushConst(0);
+                        // 2nd argument - string stream handle
+                        PushConst(0);
 
-      // 2nd argument - string stream handle
-      PushConst(0);
-
-      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
-      GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
-      end;
-
-    end;
+                        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+                        GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
+                end;
+        end;
 
 
-  WRITEPROC, WRITELNPROC: begin
-    FileSpecified := FALSE;
-    IsFirstParam := TRUE;
+        WRITEPROC, WRITELNPROC: begin
+                FileSpecified := FALSE;
+                IsFirstParam := TRUE;
 
-    if Tok.Kind = OPARTOK then begin
-      NextTok;
-      WHILE TRUE DO BEGIN
+                if Tok.Kind = OPARTOK then begin
+                        NextTok;
+                        WHILE TRUE DO BEGIN
         // 1st argument - file handle
         if FileSpecified then RestoreFileHandle
         else PushConst(0);
@@ -427,8 +414,7 @@ case proc of
     EatTok(CPARTOK);
     end;
 
-  NEWPROC, DISPOSEPROC:
-    begin
+  NEWPROC, DISPOSEPROC: begin
     EatTok(OPARTOK);
     AssertIdent;
     CompileDesignator(DesignatorType);
@@ -437,10 +423,8 @@ case proc of
     EatTok(CPARTOK);
     end;
 
-  HALTPROC:
-    begin
-    if Tok.Kind = OPARTOK then
-      begin
+  HALTPROC: begin
+    if Tok.Kind = OPARTOK then begin
       NextTok;
       CompileConstExpression(ErrorCode, ExpressionType);
       GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);
@@ -451,20 +435,19 @@ case proc of
     GenerateHalt(ErrorCode.Value);
     end;
 
-  INTRPROC:
-    begin
-    EatTok(OPARTOK);
-    CompileConstExpression(InterruptNumber, ActualParamType);
-    GetCompatibleType(ActualParamType, INTEGERTYPEINDEX);
-    EatTok(COMMATOK);
-    CompileExpression(ActualParamType);
-    GetCompatibleType(ActualParamType, POINTERTYPEINDEX);
-    GenerateInterrupt(InterruptNumber.Value);
-    EatTok(CPARTOK);
-    end;
-end;// case
+        INTRPROC: begin
+                EatTok(OPARTOK);
+                CompileConstExpression(InterruptNumber, ActualParamType);
+                GetCompatibleType(ActualParamType, INTEGERTYPEINDEX);
+                EatTok(COMMATOK);
+                CompileExpression(ActualParamType);
+                GetCompatibleType(ActualParamType, POINTERTYPEINDEX);
+                GenerateInterrupt(InterruptNumber.Value);
+                EatTok(CPARTOK);
+        end;
+        end;
 
-end;// CompilePredefinedProc
+end;
 
 
 
@@ -542,18 +525,17 @@ begin
         end;
         end;// case
         EatTok(CPARTOK);
-end;// CompilePredefinedFunc
+end;
 
 
 
 
 
 procedure CompileDesignator(var ValType: Byte);
-var
-  FieldIndex: Integer;
-  PIdent : PIdentifier;
-  ArrayIndexType: Byte;
-  IsRefParam: Boolean;
+var     FieldIndex: Integer;
+        PIdent : PIdentifier;
+        ArrayIndexType: Byte;
+        IsRefParam: Boolean;
 begin
         AssertIdent;
 
@@ -615,16 +597,14 @@ end; // CompileDesignator
 
 
 procedure CompileActualParameters(PIdent : PIdentifier);
-var
-  NumActualParams: Integer;
-  ActualParamType: Byte;
-  IsRefParam, TreatCharAsString: Boolean;
-  CurParam: PParam;
+var     NumActualParams: Integer;
+        ActualParamType: Byte;
+        IsRefParam, TreatCharAsString: Boolean;
+        CurParam: PParam;
 begin
 NumActualParams := 0;
 
-if Tok.Kind = OPARTOK then                            // Actual parameter list found
-  begin
+if Tok.Kind = OPARTOK then begin
   repeat
     NextTok;
 
@@ -674,23 +654,20 @@ if Tok.Kind = OPARTOK then                            // Actual parameter list f
   EatTok(CPARTOK);
   end;// if Tok.Kind = OPARTOR
 
-if NumActualParams < PIdent^.NumParams then
-  Error('Too few actual parameters');
+        if NumActualParams < PIdent^.NumParams then Error('Too few actual parameters');
   
-end;// CompileActualParameters  
+end;
 
         
 
 
 
 procedure CompileFactor(var ValType: Byte);
-var
-  PIdent : PIdentifier;
+var     PIdent : PIdentifier;
 begin
-case Tok.Kind of
-  IDENTTOK:
-    begin
-    PIdent := FindIdent(Tok.Name);
+        case Tok.Kind of
+        IDENTTOK: begin
+                PIdent := FindIdent(Tok.Name);
     if PIdent^.Kind = PROC then
       Error('Expression expected but procedure ' + PIdent^.Name + ' found')
     else if PIdent^.Kind = FUNC then                                      // Function call
@@ -734,196 +711,138 @@ case Tok.Kind of
       ValType := PIdent^.DataType;
       end;
     end;
-
-
-  ADDRESSTOK:
-    begin
-    NextTok;
-    CompileDesignator(ValType);
-    ValType := POINTERTYPEINDEX;
-    end;
-
-
-  INTNUMBERTOK:
-    begin
-    PushConst(Tok.Value);
-    ValType := INTEGERTYPEINDEX;
-    NextTok;
-    end;
-
-
-  FRACNUMBERTOK:
-    begin
-    PushConst(Integer((Pointer(@Tok.FracValue))^));
-    ValType := REALTYPEINDEX;
-    NextTok;
-    end;
-
-
-  CHARLITERALTOK:
-    begin
-    PushConst(Tok.Value);
-    ValType := CHARTYPEINDEX;
-    NextTok;
-    end;
-
-
-  STRINGLITERALTOK:
-    begin
-    PushVarPtr(Tok.StrAddress, GLOBAL, 0);
-    ValType := STRINGTYPEINDEX;
-    NextTok;
-    end;
-
-
-  OPARTOK:       // Expression in parentheses expected
-    begin
-    NextTok;
-    CompileExpression(ValType);
-    EatTok(CPARTOK);
-    end;
-
-
-  NOTTOK:
-    begin
-    NextTok;
-    CompileFactor(ValType);
-    CheckOperator(NOTTOK, ValType);
-    GenerateUnaryOperator(NOTTOK, ValType);
-    end;
-
-
-  NILTOK:
-    begin
-    PushConst(0);
-    ValType := POINTERTYPEINDEX;
-    NextTok;
-    end;
-
-else
-  Error('Expression expected but ' + GetSpelling(Tok) + ' found');
-end;// case
-
-end;// CompileFactor
-
-
-
+        ADDRESSTOK: begin
+                NextTok;
+                CompileDesignator(ValType);
+                ValType := POINTERTYPEINDEX;
+        end;
+        INTNUMBERTOK: begin
+                PushConst(Tok.Value);
+                ValType := INTEGERTYPEINDEX;
+                NextTok;
+        end;
+        FRACNUMBERTOK: begin
+                PushConst(Integer((Pointer(@Tok.FracValue))^));
+                ValType := REALTYPEINDEX;
+                NextTok;
+        end;
+        CHARLITERALTOK: begin
+                PushConst(Tok.Value);
+                ValType := CHARTYPEINDEX;
+                NextTok;
+        end;
+        STRINGLITERALTOK: begin
+                PushVarPtr(Tok.StrAddress, GLOBAL, 0);
+                ValType := STRINGTYPEINDEX;
+                NextTok;
+        end;
+        OPARTOK: begin
+                NextTok;
+                CompileExpression(ValType);
+                EatTok(CPARTOK);
+        end;
+        NOTTOK: begin
+                NextTok;
+                CompileFactor(ValType);
+                CheckOperator(NOTTOK, ValType);
+                GenerateUnaryOperator(NOTTOK, ValType);
+        end;
+        NILTOK: begin
+                PushConst(0);
+                ValType := POINTERTYPEINDEX;
+                NextTok;
+        end;
+        else Error('Expression expected but ' + GetSpelling(Tok) + ' found');
+        end;
+end;
 
 procedure CompileTerm(var ValType: Byte);
-var
-  OpTok: TToken;
-  RightValType: Byte;
+var     OpTok        : TToken;
+        RightValType : Byte;
 begin
-CompileFactor(ValType);
+        CompileFactor(ValType);
 
-while Tok.Kind in [MULTOK, DIVTOK, IDIVTOK, MODTOK, SHLTOK, SHRTOK, ANDTOK] do
-  begin
-  OpTok := Tok;
-  NextTok;
-  CompileFactor(RightValType);
+        while Tok.Kind in [MULTOK, DIVTOK, IDIVTOK, MODTOK, SHLTOK, SHRTOK, ANDTOK] do begin
+                OpTok := Tok;
+                NextTok;
+                CompileFactor(RightValType);
 
-  // Try to convert integer to real
-  if ConversionIsPossible(ValType, RightValType) then begin
-    GenerateFloat(SizeOf(Single));
-    ValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightValType, ValType) then begin
-    GenerateFloat(0);
-    RightValType := REALTYPEINDEX;
-    end;
+                if ConversionIsPossible(ValType, RightValType) then begin
+                        GenerateFloat(SizeOf(Single));
+                        ValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightValType, ValType) then begin
+                        GenerateFloat(0);
+                        RightValType := REALTYPEINDEX;
+                end;
 
-  // Special case: real division of two integers
-  if (OpTok.Kind = DIVTOK) and ConversionIsPossible(ValType, REALTYPEINDEX) and ConversionIsPossible(RightValType, REALTYPEINDEX) then begin
-    GenerateFloat(SizeOf(Single));
-    GenerateFloat(0);
-    ValType := REALTYPEINDEX;
-    RightValType := REALTYPEINDEX;
-    end;
-
-
-  ValType := GetCompatibleType(ValType, RightValType);
-  CheckOperator(OpTok.Kind, ValType);
-  GenerateBinaryOperator(OpTok.Kind, ValType);
-  end;// while
-
-end;// CompileTerm
-
-
+                if (OpTok.Kind = DIVTOK) and ConversionIsPossible(ValType, REALTYPEINDEX) and ConversionIsPossible(RightValType, REALTYPEINDEX) then begin
+                        GenerateFloat(SizeOf(Single));
+                        GenerateFloat(0);
+                        ValType := REALTYPEINDEX;
+                        RightValType := REALTYPEINDEX;
+                end;
+                ValType := GetCompatibleType(ValType, RightValType);
+                CheckOperator(OpTok.Kind, ValType);
+                GenerateBinaryOperator(OpTok.Kind, ValType);
+        end;
+end;
 
 procedure CompileSimpleExpression(var ValType: Byte);
-var
-  UnaryOpTok, OpTok: TToken;
-  RightValType: Byte;
+var     UnaryOpTok, OpTok: TToken;
+        RightValType: Byte;
 begin
-UnaryOpTok := Tok;
-if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then
-  NextTok;
+        UnaryOpTok := Tok;
+        if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then NextTok;
 
-CompileTerm(ValType);
+        CompileTerm(ValType);
 
-if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then
-  CheckOperator(UnaryOpTok.Kind, ValType);
+        if UnaryOpTok.Kind in [PLUSTOK, MINUSTOK] then
+                CheckOperator(UnaryOpTok.Kind, ValType);
 
-if UnaryOpTok.Kind = MINUSTOK then GenerateUnaryOperator(MINUSTOK, ValType);     // Unary minus
+        if UnaryOpTok.Kind = MINUSTOK then GenerateUnaryOperator(MINUSTOK, ValType);     // Unary minus
 
-while Tok.Kind in [PLUSTOK, MINUSTOK, ORTOK, XORTOK] do
-  begin
-  OpTok := Tok;
-  NextTok;
-  CompileTerm(RightValType);
-
-  // Try to convert integer to real
-  if ConversionIsPossible(ValType, RightValType) then begin
-    GenerateFloat(SizeOf(Single));
-    ValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightValType, ValType) then begin
-    GenerateFloat(0);
-    RightValType := REALTYPEINDEX;
-    end;
-
-  ValType := GetCompatibleType(ValType, RightValType);
-  CheckOperator(OpTok.Kind, ValType);
-  GenerateBinaryOperator(OpTok.Kind, ValType);
-  end;// while
-
-end;// CompileSimpleExpression
-
-
-
+        while Tok.Kind in [PLUSTOK, MINUSTOK, ORTOK, XORTOK] do begin
+                OpTok := Tok;
+                NextTok;
+                CompileTerm(RightValType);
+                if ConversionIsPossible(ValType, RightValType) then begin
+                        GenerateFloat(SizeOf(Single));
+                        ValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightValType, ValType) then begin
+                        GenerateFloat(0);
+                        RightValType := REALTYPEINDEX;
+                end;
+                ValType := GetCompatibleType(ValType, RightValType);
+                CheckOperator(OpTok.Kind, ValType);
+                GenerateBinaryOperator(OpTok.Kind, ValType);
+        end;
+end;
 
 procedure CompileExpression(var ValType: Byte);
-var
-  OpTok: TToken;
-  RightValType: Byte;
+var     OpTok        : TToken;
+        RightValType : Byte;
 begin
-CompileSimpleExpression(ValType);
-
-if Tok.Kind in [EQTOK, NETOK, LTTOK, LETOK, GTTOK, GETOK] then begin
-  OpTok := Tok;
-  NextTok;
-  CompileSimpleExpression(RightValType);
-
-  // Try to convert integer to real
-  if ConversionIsPossible(ValType, RightValType) then begin
-    GenerateFloat(SizeOf(Single));
-    ValType := REALTYPEINDEX;
-    end;
-  if ConversionIsPossible(RightValType, ValType) then begin
-    GenerateFloat(0);
-    RightValType := REALTYPEINDEX;
-    end;
-
-  GetCompatibleType(ValType, RightValType);
-  CheckOperator(OpTok.Kind, ValType);
-  ValType := BOOLEANTYPEINDEX;
-  GenerateRelation(OpTok.Kind, RightValType);
-  end;// while
-
-end;// CompileExpression
-
-
-
+        CompileSimpleExpression(ValType);
+        if Tok.Kind in [EQTOK, NETOK, LTTOK, LETOK, GTTOK, GETOK] then begin
+                OpTok := Tok;
+                NextTok;
+                CompileSimpleExpression(RightValType);
+                if ConversionIsPossible(ValType, RightValType) then begin
+                        GenerateFloat(SizeOf(Single));
+                        ValType := REALTYPEINDEX;
+                end;
+                if ConversionIsPossible(RightValType, ValType) then begin
+                        GenerateFloat(0);
+                        RightValType := REALTYPEINDEX;
+                end;
+                GetCompatibleType(ValType, RightValType);
+                CheckOperator(OpTok.Kind, ValType);
+                ValType := BOOLEANTYPEINDEX;
+                GenerateRelation(OpTok.Kind, RightValType);
+        end;
+end;
 
 procedure CompileStatementList;
 begin
@@ -932,36 +851,27 @@ begin
                 NextTok;
                 CompileStatement;
         end;
-end; // CompileStatementList 
-
-
-
+end;
 
 procedure CompileCompoundStatement;
 begin
         EatTok(BEGINTOK);
         CompileStatementList;
         EatTok(ENDTOK);
-end; // CompileCompoundStatement
-
-
-
+end;
 
 procedure CompileStatement;
-var
-  NumCaseStatements: Integer;
-  ConstVal, ConstVal2: TConst;
-  ExpressionType, DesignatorType, ConstValType, SelectorType: Byte;
-  Down, ExitLoop, TreatCharAsString: Boolean;
-  PIdent, ResultIdent : PIdentifier;
+var     NumCaseStatements: Integer;
+        ConstVal, ConstVal2: TConst;
+        ExpressionType, DesignatorType, ConstValType, SelectorType: Byte;
+        Down, TreatCharAsString: Boolean;
+        PIdent, ResultIdent : PIdentifier;
 begin
 
 case Tok.Kind of
-  IDENTTOK:
-    begin
+  IDENTTOK: begin
     PIdent := FindIdent(Tok.Name);
     case PIdent^.Kind of
-
       VARIABLE, FUNC:                                                 // Variable or function result assignment
         begin
         if PIdent^.Kind = VARIABLE then
@@ -1018,11 +928,9 @@ case Tok.Kind of
     end// case PIdent^.Kind
     end;
 
-  BEGINTOK:
-    CompileCompoundStatement;
+  BEGINTOK: CompileCompoundStatement;
 
-  IFTOK:
-    begin
+  IFTOK: begin
     NextTok;
     CompileExpression(ExpressionType);
     GetCompatibleType(ExpressionType, BOOLEANTYPEINDEX);
@@ -1032,18 +940,16 @@ case Tok.Kind of
     GenerateIfProlog;
     CompileStatement;
 
-    if Tok.Kind = ELSETOK then
-      begin
-      NextTok;
-      GenerateElseProlog;                 
-      CompileStatement;
-      end;
+        if Tok.Kind = ELSETOK then begin
+                NextTok;
+                GenerateElseProlog;                 
+                CompileStatement;
+        end;
 
     GenerateIfElseEpilog;
     end;
 
-  CASETOK:
-    begin
+  CASETOK: begin
     NextTok;
     CompileExpression(SelectorType);
     if not (Types[SelectorType].TypeKind in OrdinalTypes) then
@@ -1054,28 +960,23 @@ case Tok.Kind of
 
     NumCaseStatements := 0;
 
-    repeat       // Loop over all cases
+    WHILE TRUE DO BEGIN
 
-      repeat     // Loop over all constants for the current case
+      WHILE TRUE DO BEGIN
         CompileConstExpression(ConstVal, ConstValType);
         GetCompatibleType(ConstValType, SelectorType);
 
-        if Tok.Kind = RANGETOK then                                      // Range check
-          begin
+        if Tok.Kind = RANGETOK then begin
           NextTok;
           CompileConstExpression(ConstVal2, ConstValType);
           GetCompatibleType(ConstValType, SelectorType);
           GenerateCaseRangeCheck(ConstVal.Value, ConstVal2.Value);
-          end
-        else
+          end else
           GenerateCaseEqualityCheck(ConstVal.Value);                     // Equality check
 
-        ExitLoop := FALSE;
-        if Tok.Kind = COMMATOK then
-          NextTok
-        else
-          ExitLoop := TRUE;
-      until ExitLoop;
+        if Tok.Kind = COMMATOK then NextTok
+        else BREAK;
+      END;
 
       EatTok(COLONTOK);
 
@@ -1085,30 +986,24 @@ case Tok.Kind of
 
       Inc(NumCaseStatements);
 
-      ExitLoop := FALSE;
-      if Tok.Kind <> SEMICOLONTOK then
-        begin
-        if Tok.Kind = ELSETOK then              // Default statements
-          begin
+      if Tok.Kind <> SEMICOLONTOK then begin
+        if Tok.Kind = ELSETOK then begin
           NextTok;
           CompileStatementList;
           end;
-        ExitLoop := TRUE;
-        end
-      else
-        begin
+        BREAK;
+        end else begin
         NextTok;
-        if Tok.Kind = ENDTOK then ExitLoop := TRUE;
+        if Tok.Kind = ENDTOK then BREAK;
         end
-    until ExitLoop;
+    END; { while }
 
     EatTok(ENDTOK);
 
     GenerateCaseEpilog(NumCaseStatements);
     end;  
 
-  WHILETOK:
-    begin
+  WHILETOK: begin
     Inc(CodePosStackTop);
     CodePosStack[CodePosStackTop] := CodeSize;      // Save return address used by GenerateWhileEpilog
 
@@ -1123,8 +1018,7 @@ case Tok.Kind of
     GenerateWhileEpilog;
     end;
 
-  REPEATTOK:
-    begin
+  REPEATTOK: begin
     GenerateRepeatProlog;
 
     NextTok;
@@ -1138,8 +1032,7 @@ case Tok.Kind of
     GenerateRepeatEpilog;
     end;
 
-  FORTOK:
-    begin
+  FORTOK: begin
     NextTok;
     AssertIdent;
     PIdent := FindIdent(Tok.Name);
@@ -1186,7 +1079,7 @@ case Tok.Kind of
 
 end;// case
 
-end;// CompileStatement
+end;
 
 
 
@@ -1286,8 +1179,7 @@ else if Tok.Kind = ARRAYTOK then                                  // Array
   CompileType(NestedDataType);
   Types[ArrType].BaseType := NestedDataType;
   end // if ARRAYTOK
-else if Tok.Kind = RECORDTOK then                                 // Record
-  begin
+else if Tok.Kind = RECORDTOK then begin
   // Add new anonymous type
   Inc(NumTypes);
   Types[NumTypes].TypeKind := RECORDTYPE;
@@ -1323,8 +1215,7 @@ else if Tok.Kind = RECORDTOK then                                 // Record
     ExitLoop := FALSE;
     if Tok.Kind <> SEMICOLONTOK then
       ExitLoop := TRUE
-    else
-      begin
+    else begin
       NextTok;
       if Tok.Kind = ENDTOK then ExitLoop := TRUE;
       end
@@ -1334,8 +1225,7 @@ else if Tok.Kind = RECORDTOK then                                 // Record
 
   Types[DataType].Block := BlockStack[BlockStackTop];
   end// if RECORDTOK
-else                                                                              // Subrange or type name
-  begin
+else begin
   TypeNameGiven := FALSE;
   PIdent := nil;
   if Tok.Kind = IDENTTOK then begin
@@ -1343,8 +1233,7 @@ else                                                                            
     if PIdent^.Kind = USERTYPE then TypeNameGiven := TRUE;
     end;
 
-  if TypeNameGiven then                                                           // Type identifier
-  begin
+  if TypeNameGiven then begin
     DataType := PIdent^.DataType;
     NextTok;
     end else begin
@@ -1514,7 +1403,7 @@ var
   DeclareId('EXP',    FUNC, 0, 0, VALPASSING, 0, 0.0, EXPFUNC);
   DeclareId('LN',     FUNC, 0, 0, VALPASSING, 0, 0.0, LNFUNC);
   DeclareId('SQRT',   FUNC, 0, 0, VALPASSING, 0, 0.0, SQRTFUNC);
-  end;// DeclarePredefinedIdents
+  end;
 
 
 
@@ -1656,20 +1545,14 @@ begin
     NextTok;
     repeat
       NumIdentInList := 0;
-      repeat
+      WHILE TRUE DO BEGIN
         AssertIdent;
-
         Inc(NumIdentInList);
         IdentInListName[NumIdentInList] := Tok.Name;
-
         NextTok;
-
-        ExitLoop := FALSE;
-        if Tok.Kind = COMMATOK then
-          NextTok
-        else
-          ExitLoop := TRUE;
-      until ExitLoop;
+        if Tok.Kind = COMMATOK then NextTok
+        else BREAK;
+      END;
 
       EatTok(COLONTOK);
 
@@ -1881,7 +1764,7 @@ while (LastIdent <> nil) and (LastIdent^.Block = BlockStack[BlockStackTop]) do b
         end;    
 
         Dec(BlockStackTop);
-end;// CompileBlock
+end;
 
 
 
@@ -1902,7 +1785,7 @@ begin
         CompileBlock(nil);
 
         CheckTok(PERIODTOK);
-end;// CompileProgram
+end;
 
 
 end.

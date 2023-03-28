@@ -41,12 +41,12 @@ VAR
 Tok           : TToken;
 EndOfProgram  : Boolean;
 
-procedure InitScanner;
+procedure InitScanner(pname : String);
 procedure EnterIncludedFile(const Name: TString);
-procedure LeaveIncludedFile(var ch: Char);
 procedure NextTok;
 procedure CheckTok(ExpectedTokKind: Byte);
 procedure EatTok(ExpectedTokKind: Byte);
+procedure DestroyScanner;
 
 IMPLEMENTATION
 
@@ -54,26 +54,24 @@ USES xdglob, xdutils;
 
 VAR
 ch, ch2: Char;
+InFile: file of Char;
 
-procedure InitScanner;
+procedure InitScanner(pname : String);
 begin
         EndOfProgram := FALSE;
         UnitStackTop := 1;
-        UnitStack[UnitStackTop].FileName := ProgramName;
-        Assign(InFile, ProgramName);
+        UnitStack[UnitStackTop].FileName := pname;
+        Assign(InFile, pname);
         Reset(InFile);
 
         if IOResult <> 0 then
-                Error('Unable to open source file ' + ProgramName);
+                Error('Could not read ' + BaseName(pname));
 
         Line := 1;
 
         ch  := ' ';
         ch2 := ' ';
 end;
-
-
-
 
 procedure EnterIncludedFile(const Name: TString);
 begin
@@ -85,12 +83,12 @@ begin
         Reset(InFile);
 
         if IOResult <> 0 then begin
-                Assign(InFile, basename(Name));
+                Assign(InFile, BaseName(Name));
                 Reset(InFile);
                 if IOResult <> 0 then begin
-                        Assign(InFile, syspath + basename(Name));
+                        Assign(InFile, syspath + BaseName(Name));
                         Reset(InFile);
-                        if IOResult <> 0 then Error('Unable to open source file ' + Name);
+                        if IOResult <> 0 then Error('Unable to open source file ' + BaseName(Name));
                 end;
         end;
 
@@ -99,9 +97,6 @@ begin
 
         Line := 1;
 end;
-
-
-
 
 procedure LeaveIncludedFile(var ch: Char);
 begin
@@ -118,9 +113,6 @@ begin
         end;
 end;
 
-
-
-
 procedure ReadChar(var ch: Char);
 begin
         if EndOfProgram then ch := #0
@@ -131,15 +123,11 @@ begin
         if ch = #10 then Inc(Line); // End of line found
 end;
 
-
-
 procedure ReadValidChar(var ch: Char);
 begin
         ReadChar(ch);
         ch := UpCase(ch);
 end;
-
-
 
 procedure ReadLiteralChar(var ch: Char);
 begin
@@ -147,22 +135,15 @@ begin
         if (ch = #0) or (ch = #10) then Error('Unterminated string');
 end;
 
-
-
-
 procedure ReadSingleLineComment;
 begin
         while (ch <> #10) and not EndOfProgram do ReadChar(ch);
 end;
 
-
-
-
 procedure ReadMultiLineComment;
 begin
         while (ch <> '}') and not EndOfProgram do ReadChar(ch);
 end;
-
 
 procedure ReadDirective;
 var     Text: TString;
@@ -179,330 +160,228 @@ begin
         end else Error('Unknown compiler directive');
 end;
 
-
-
 procedure ReadHexadecimalNumber;
-var
-  Num: Integer;
-  NumFound: Boolean;
+var     Num      : Integer;
+        NumFound : Boolean;
 begin
-Num := 0;
-
-NumFound := FALSE;
-while ch in ['0'..'9', 'A'..'F'] do
-  begin
-  if ch in ['0'..'9'] then
-    Num := 16 * Num + Ord(ch) - Ord('0')
-  else
-    Num := 16 * Num + Ord(ch) - Ord('A') + 10;
-  NumFound := TRUE;
-  ReadValidChar(ch);
-  end;
-
-if not NumFound then
-  Error('Hexadecimal constant is not found');
-
-Tok.Kind := INTNUMBERTOK;
-Tok.Value := Num;
+        Num := 0;
+        NumFound := FALSE;
+        while ch in ['0'..'9', 'A'..'F'] do begin
+                if ch in ['0'..'9'] then
+                        Num := 16 * Num + Ord(ch) - Ord('0')
+                else
+                        Num := 16 * Num + Ord(ch) - Ord('A') + 10;
+                NumFound := TRUE;
+                ReadValidChar(ch);
+        end;
+        if not NumFound then Error('Hexadecimal constant is not found');
+        Tok.Kind := INTNUMBERTOK;
+        Tok.Value := Num;
 end;
-
-
 
 procedure ReadDecimalNumber;
-var
-  Num, Expon: Integer;
-  Frac, FracWeight: Single;
-  NegExpon, RangeFound, ExponFound: Boolean;
+var     Num, Expon: Integer;
+        Frac, FracWeight: Single;
+        NegExpon, RangeFound, ExponFound: Boolean;
 begin
-Num := 0;
-Frac := 0;
-Expon := 0;
-NegExpon := FALSE;
+        Num := 0;
+        Frac := 0;
+        Expon := 0;
+        NegExpon := FALSE;
 
-while ch in ['0'..'9'] do
-  begin
-  Num := 10 * Num + Ord(ch) - Ord('0');
-  ReadValidChar(ch);
-  end;
-
-if (ch <> '.') and (ch <> 'E') then                                   // Integer number
-  begin
-  Tok.Kind := INTNUMBERTOK;
-  Tok.Value := Num;
-  end
-else
-  begin
-
-  // Check for '..' token
-  RangeFound := FALSE;
-  if ch = '.' then
-    begin
-    ReadValidChar(ch2);
-    if ch2 = '.' then                                                 // Integer number followed by '..' token
-      begin
-      Tok.Kind := INTNUMBERTOK;
-      Tok.Value := Num;
-      RangeFound := TRUE;
-      end;
-    if not EndOfProgram then Seek(InFile, FilePos(InFile) - 1);
-    end; // if ch = '.'
-    
-  if not RangeFound then                                              // Fractional number
-    begin
-
-    // Check for fractional part
-    if ch = '.' then
-      begin
-      FracWeight := 0.1;
-      ReadValidChar(ch);
-
-      while ch in ['0'..'9'] do
-        begin
-        Frac := Frac + FracWeight * (Ord(ch) - Ord('0'));
-        FracWeight := FracWeight / 10;
-        ReadValidChar(ch);
-        end;
-      end; // if ch = '.'
-
-    // Check for exponent
-    if ch = 'E' then
-      begin
-      ReadValidChar(ch);
-
-      // Check for exponent sign
-      if ch = '+' then
-        ReadValidChar(ch)
-      else if ch = '-' then
-        begin
-        NegExpon := TRUE;
-        ReadValidChar(ch);
+        while ch in ['0'..'9'] do begin
+                Num := 10 * Num + Ord(ch) - Ord('0');
+                ReadValidChar(ch);
         end;
 
-      ExponFound := FALSE;
-      while ch in ['0'..'9'] do
-        begin
-        Expon := 10 * Expon + Ord(ch) - Ord('0');
-        ReadValidChar(ch);
-        ExponFound := TRUE;
+        if (ch <> '.') and (ch <> 'E') then begin
+                Tok.Kind := INTNUMBERTOK;
+                Tok.Value := Num;
+        end else begin
+                RangeFound := FALSE;
+                if ch = '.' then begin
+                        ReadValidChar(ch2);
+                        if ch2 = '.' then begin
+                                Tok.Kind := INTNUMBERTOK;
+                                Tok.Value := Num;
+                                RangeFound := TRUE;
+                        end;
+                        if not EndOfProgram then Seek(InFile, FilePos(InFile) - 1);
+                end;
+                if not RangeFound then begin
+                        if ch = '.' then begin
+                                FracWeight := 0.1;
+                                ReadValidChar(ch);
+                                while ch in ['0'..'9'] do begin
+                                        Frac := Frac + FracWeight * (Ord(ch) - Ord('0'));
+                                        FracWeight := FracWeight / 10;
+                                        ReadValidChar(ch);
+                                end;
+                        end;
+                        if ch = 'E' then begin
+                                ReadValidChar(ch);
+                                if ch = '+' then ReadValidChar(ch)
+                                else if ch = '-' then begin
+                                        NegExpon := TRUE;
+                                        ReadValidChar(ch);
+                                end;
+                                ExponFound := FALSE;
+                                while ch in ['0'..'9'] do begin
+                                        Expon := 10 * Expon + Ord(ch) - Ord('0');
+                                        ReadValidChar(ch);
+                                        ExponFound := TRUE;
+                                end;
+                                if not ExponFound then Error('Exponent is not found');
+                                if NegExpon then Expon := -Expon;
+                        end;
+                        Tok.Kind := FRACNUMBERTOK;
+                        Tok.FracValue := (Num + Frac) * exp(Expon * ln(10));
+                end;
         end;
-
-      if not ExponFound then
-        Error('Exponent is not found');
-
-      if NegExpon then Expon := -Expon;
-      end; // if ch = 'E'
-
-    Tok.Kind := FRACNUMBERTOK;
-    Tok.FracValue := (Num + Frac) * exp(Expon * ln(10));
-    end; // if not RangeFound
-  end; // else
 end;
-
 
 procedure ReadNumber;
 begin
-if ch = '$' then
-  begin
-  ReadValidChar(ch);
-  ReadHexadecimalNumber;
-  end
-else
-  ReadDecimalNumber;
+        if ch = '$' then begin
+                ReadValidChar(ch);
+                ReadHexadecimalNumber;
+        end else ReadDecimalNumber;
 end;    
-
-
-
 
 procedure ReadCharCode;
 begin
-ReadValidChar(ch);
+        ReadValidChar(ch);
+        if not (ch in ['0'..'9', '$']) then Error('Character code is not found');
 
-if not (ch in ['0'..'9', '$']) then
-  Error('Character code is not found');
+        ReadNumber;
+        if Tok.Kind = FRACNUMBERTOK then Error('Integer character code expected');
 
-ReadNumber;
-
-if Tok.Kind = FRACNUMBERTOK then
-  Error('Integer character code expected');
-
-Tok.Kind := CHARLITERALTOK;
+        Tok.Kind := CHARLITERALTOK;
 end;
-
 
 procedure ReadKeywordOrIdentifier;
-var
-  Text: TString;
-  CurToken: Integer;
+var     Text     : TString;
+        CurToken : Integer;
 begin
-Text := '';
-repeat
-  Text := Text + ch;
-  ReadValidChar(ch);
-until not (ch in ['A'..'Z', '_', '0'..'9']);
-
-CurToken := GetKeyword(Text);
-if CurToken <> 0 then               // Keyword found
-  Tok.Kind := CurToken
-else
-  begin                             // Identifier found
-  Tok.Kind := IDENTTOK;
-  Tok.Name := Text;
-  end;
+        Text := '';
+        repeat
+                Text := Text + ch;
+                ReadValidChar(ch);
+        until not (ch in ['A'..'Z', '_', '0'..'9']);
+        CurToken := GetKeyword(Text);
+        if CurToken <> 0 then Tok.Kind := CurToken
+        else begin
+                Tok.Kind := IDENTTOK;
+                Tok.Name := Text;
+        end;
 end;
-
-
 
 procedure ReadCharOrStringLiteral;
-var
-  Text: TString;
-  EndOfLiteral: Boolean;
+var     Text: TString;
+        EndOfLiteral: Boolean;
 begin
-Text := '';
-EndOfLiteral := FALSE;
-
-repeat
-  ReadLiteralChar(ch);
-  if ch <> '''' then
-    Text := Text + ch
-  else
-    begin
-    Read(InFile, ch2);
-    if ch2 = '''' then                                                      // Apostrophe character found
-      Text := Text + ch
-    else
-      begin
-      if not EndOfProgram then Seek(InFile, FilePos(InFile) - 1);           // Discard ch2
-      EndOfLiteral := TRUE;
-      end;
-    end;
-until EndOfLiteral;
-
-if Length(Text) = 1 then
-  begin
-  Tok.Kind := CHARLITERALTOK;
-  Tok.Value := Ord(Text[1]);
-  end
-else
-  Tok.Kind := STRINGLITERALTOK;
-
-DefineStaticString(Tok, Text);    // A character literal is also copied to a single-character static string so this string can be passed to subroutines
-
-ReadValidChar(ch);
+        Text := '';
+        EndOfLiteral := FALSE;
+        repeat
+                ReadLiteralChar(ch);
+                if ch <> '''' then Text := Text + ch
+                else begin
+                        Read(InFile, ch2);
+                        if ch2 = '''' then Text := Text + ch
+                        else begin
+                                if not EndOfProgram then Seek(InFile, FilePos(InFile) - 1); // Discard ch2
+                                EndOfLiteral := TRUE;
+                        end;
+                end;
+        until EndOfLiteral;
+        if Length(Text) = 1 then begin
+                Tok.Kind := CHARLITERALTOK;
+                Tok.Value := Ord(Text[1]);
+        end else Tok.Kind := STRINGLITERALTOK;
+        DefineStaticString(Tok, Text);
+        ReadValidChar(ch);
 end;
 
-
-
-
 procedure NextTok;
-var
-  DivFound: Boolean;
+var     DivFound: Boolean;
 begin
-Tok.Kind := 0;
+        Tok.Kind := 0;
 
-// Skip spaces, comments, directives
-DivFound := FALSE;
-while (ch in [#1..#31, ' ', '{']) or ((ch = '/') and not DivFound) do
-  begin
-  if ch = '{' then                                                      // Multi-line comment or directive
-    begin
-    ReadValidChar(ch);
-    if ch = '$' then ReadDirective else ReadMultiLineComment;
-    end
-  else if ch = '/' then
-    begin
-    ReadValidChar(ch2);
-    if ch2 = '/' then
-      ReadSingleLineComment                                             // Single-line comment
-    else
-      begin
-      if not EndOfProgram then Seek(InFile, FilePos(InFile) - 2);       // Discard ch and ch2
-      DivFound := TRUE;
-      end;
-    end;
-  ReadValidChar(ch);
-  end;
+        DivFound := FALSE;
+        while (ch in [#1..#31, ' ', '{']) or ((ch = '/') and not DivFound) do begin
+                if ch = '{' then begin
+                        ReadValidChar(ch);
+                        if ch = '$' then ReadDirective else ReadMultiLineComment;
+                end else if ch = '/' then begin
+                        ReadValidChar(ch2);
+                        if ch2 = '/' then ReadSingleLineComment
+                        else begin
+                                if not EndOfProgram then Seek(InFile, FilePos(InFile) - 2);
+                                DivFound := TRUE;
+                        end;
+                end;
+                ReadValidChar(ch);
+        end;
 
-// Read token
-case ch of
-  '0'..'9', '$':
-    ReadNumber;
-  '#':
-    ReadCharCode;
-  'A'..'Z', '_':
-    ReadKeywordOrIdentifier;
-  '''':
-    ReadCharOrStringLiteral;
-  ':':                              // Single- or double-character tokens
-    begin
-    Tok.Kind := COLONTOK;
-    ReadValidChar(ch);
-    if ch = '=' then
-      begin
-      Tok.Kind := ASSIGNTOK;
-      ReadValidChar(ch);
-      end;
-    end;
-  '>':
-    begin
-    Tok.Kind := GTTOK;
-    ReadValidChar(ch);
-    if ch = '=' then
-      begin
-      Tok.Kind := GETOK;
-      ReadValidChar(ch);
-      end;
-    end;
-  '<':
-    begin
-    Tok.Kind := LTTOK;
-    ReadValidChar(ch);
-    if ch = '=' then
-      begin
-      Tok.Kind := LETOK;
-      ReadValidChar(ch);
-      end
-    else if ch = '>' then
-      begin
-      Tok.Kind := NETOK;
-      ReadValidChar(ch);
-      end;
-    end;
-  '.':
-    begin
-    Tok.Kind := PERIODTOK;
-    ReadValidChar(ch);
-    if ch = '.' then
-      begin
-      Tok.Kind := RANGETOK;
-      ReadValidChar(ch);
-      end;
-    end;
-else                                // Single-character tokens
-  case ch of
-    '=': Tok.Kind := EQTOK;
-    ',': Tok.Kind := COMMATOK;
-    ';': Tok.Kind := SEMICOLONTOK;
-    '(': Tok.Kind := OPARTOK;
-    ')': Tok.Kind := CPARTOK;
-    '*': Tok.Kind := MULTOK;
-    '/': Tok.Kind := DIVTOK;
-    '+': Tok.Kind := PLUSTOK;
-    '-': Tok.Kind := MINUSTOK;
-    '^': Tok.Kind := DEREFERENCETOK;
-    '@': Tok.Kind := ADDRESSTOK;
-    '[': Tok.Kind := OBRACKETTOK;
-    ']': Tok.Kind := CBRACKETTOK;
-  else
-    Error('Unexpected end of program');
-  end; // case
-
-  ReadValidChar(ch);
-end; // case
-
-end; // NextTok
-
-
-
+        case ch of
+        '0'..'9', '$': ReadNumber;
+        '#': ReadCharCode;
+        'A'..'Z', '_': ReadKeywordOrIdentifier;
+        '''': ReadCharOrStringLiteral;
+        ':': begin
+                Tok.Kind := COLONTOK;
+                ReadValidChar(ch);
+                if ch = '=' then begin
+                        Tok.Kind := ASSIGNTOK;
+                        ReadValidChar(ch);
+                end;
+        end;
+        '>': begin
+                Tok.Kind := GTTOK;
+                ReadValidChar(ch);
+                if ch = '=' then begin
+                        Tok.Kind := GETOK;
+                        ReadValidChar(ch);
+                end;
+        end;
+        '<': begin
+                Tok.Kind := LTTOK;
+                ReadValidChar(ch);
+                if ch = '=' then begin
+                        Tok.Kind := LETOK;
+                        ReadValidChar(ch);
+                end else if ch = '>' then begin
+                        Tok.Kind := NETOK;
+                        ReadValidChar(ch);
+                end;
+        end;
+        '.': begin
+                Tok.Kind := PERIODTOK;
+                ReadValidChar(ch);
+                if ch = '.' then begin
+                        Tok.Kind := RANGETOK;
+                        ReadValidChar(ch);
+                end;
+        end;
+        else case ch of
+                '=': Tok.Kind := EQTOK;
+                ',': Tok.Kind := COMMATOK;
+                ';': Tok.Kind := SEMICOLONTOK;
+                '(': Tok.Kind := OPARTOK;
+                ')': Tok.Kind := CPARTOK;
+                '*': Tok.Kind := MULTOK;
+                '/': Tok.Kind := DIVTOK;
+                '+': Tok.Kind := PLUSTOK;
+                '-': Tok.Kind := MINUSTOK;
+                '^': Tok.Kind := DEREFERENCETOK;
+                '@': Tok.Kind := ADDRESSTOK;
+                '[': Tok.Kind := OBRACKETTOK;
+                ']': Tok.Kind := CBRACKETTOK;
+                else Error('Unexpected end of program');
+                end;
+        ReadValidChar(ch);
+        end;
+end;
 
 procedure CheckTok(ExpectedTokKind: Byte);
 var     ExpectedTok: TToken;
@@ -513,13 +392,15 @@ begin
         end;
 end;
 
-
-
 procedure EatTok(ExpectedTokKind: Byte);
 begin
         CheckTok(ExpectedTokKind);
         NextTok;
 end;
 
+procedure DestroyScanner;
+begin
+        Close(InFile);
+end;
 
 end.

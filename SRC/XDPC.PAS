@@ -32,7 +32,7 @@ VAR     BlockIndex: Integer;
 BEGIN
         IF ParamCount <> 1 THEN BEGIN
                 WriteLn('Copyright 2010 Vasiliy Tereshkov, vtereshkov@mail.ru');
-                WriteLn('Copyright 2023 DosWorld');
+                WriteLn('Copyright 2023 DosWorld, https://github.com/DosWorld/xdp');
                 WriteLn('XD Pascal x86 16-bit Compiler, Version ', VERSION, '/dw');
                 WriteLn;
                 WriteLn('Usage:');
@@ -42,8 +42,6 @@ BEGIN
 
         syspath := GetPathName(ParamStr(0));
 
-        ProgramName := ParamStr(1);
-
         FOR BlockIndex := 1 TO MAXBLOCKS DO BlockIsNotDead[BlockIndex] := FALSE;
         
         { Preliminary pass: compile the program and build the call graph }
@@ -52,9 +50,10 @@ BEGIN
         
         Pass := CALLDETERMPASS;
         
-        InitScanner;
+        InitScanner(ParamStr(1));
         CompileProgram;
-        
+        DestroyScanner;        
+
         { Visit the call graph nodes and mark all procedures
           that are called as not dead }
         MarkBlockNotDead(1);
@@ -67,8 +66,9 @@ BEGIN
         ZeroAll;
         Pass := CODEGENERATIONPASS;
 
-        InitScanner;
+        InitScanner(ParamStr(1));
         CompileProgram;
-        Link(ProgramName);
+        DestroyScanner;
+        Link(ParamStr(1));
 END.
 

@@ -120,6 +120,7 @@ begin
         end;
 
         Error('Unknown field: ' + S);
+        GetField := 0;
 end;      
 
 
@@ -200,8 +201,11 @@ begin
         SHORTINTTYPE: LowBound := Low(ShortInt);
         CHARTYPE:     LowBound := 0;
         BOOLEANTYPE:  LowBound := -1;
-        SUBRANGETYPE: LowBound:= Types[DataType].Low;
-        else Error('Ordinal type expected');
+        SUBRANGETYPE: LowBound := Types[DataType].Low;
+        else begin
+                Error('Ordinal type expected');
+                LowBound := 0;
+        end;
         end;
 end;
 
@@ -218,7 +222,10 @@ begin
         CHARTYPE:     HighBound := 255;
         BOOLEANTYPE:  HighBound := 0;
         SUBRANGETYPE: HighBound := Types[DataType].High;
-        else Error('Ordinal type expected');
+        else begin
+                Error('Ordinal type expected');
+                HighBound := 0;
+        end;
         end;
 end;
 
