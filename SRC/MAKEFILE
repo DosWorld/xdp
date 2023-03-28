@@ -1,0 +1,12 @@
+all: xdpc.exe
+
+xdpc.exe: XDPC.PAS XDGEN.PAS XDTYPES.PAS XDGLOB.PAS XDOPT.PAS XDPARS.PAS XDSCAN.PAS XDUTILS.PAS
+        fpc -O4 XDPC.PAS
+
+clean:
+        del *.ppu
+        del *.o
+        del *.bak
+        del xdpc.exe
+
+
