@@ -1,9 +1,9 @@
-# XDPC - XD Pascal Compiler
+# XDPC - Pascal Compiler for MS-DOS
 
-This is modified XD Pascal for DOS.
+This is modified version of XD Pascal.
 
 ## Summary
-XD Pascal is a small educational compiler for a subset of the Pascal language.
+XDPC is a small educational compiler for a subset of the Pascal language.
 A native x86 machine code generator directly emits EXE executables for MS-DOS.
 The compiler supports VGA graphics, floating-point arithmetic, etc.
 32-bit Pascal source is provided.
@@ -26,8 +26,8 @@ The compiler supports VGA graphics, floating-point arithmetic, etc.
 
 ## Detailed description
 ### Preamble
-The software is in the public domain. It comes with absolutely no warranty.
-Any comments, suggestions, or bug reports are VERY MUCH appreciated. 
+The software is in the public domain (MIT-0). It comes with absolutely no
+warranty. Any comments, suggestions, or bug reports are VERY MUCH appreciated. 
 Feel free to contact me via e-mail. 
 Enjoy.
 
@@ -295,9 +295,9 @@ procedure OutTextXY(x, y, clr: Integer; const s: string)
 
 ## License
 
-Original work is licensed as public domain.
+Original work (XD Pascal) is licensed as public domain.
 
-This repository licensed with MIT No Attribution License.
+This repository (XDPC) licensed with MIT No Attribution License.
 
 (This is equivalent license, see LICENSE.TXT for details).
 
