@@ -22,7 +22,7 @@ The compiler supports VGA graphics, floating-point arithmetic, etc.
 * Source file inclusion facility
 * Single-precision floating-point arithmetic (using the x87 FPU)
 * VGA graphics support
-* Compiler source for both Windows and DOS (FreePascal)
+* Compiler source for DOS, Windows and Linux (FreePascal)
 
 ## Detailed description
 ### Preamble

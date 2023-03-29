@@ -26,7 +26,7 @@ INTERFACE
 
 CONST
 NUMDELIMITERS         = 22;
-NUMKEYWORDS           = 31;
+NUMKEYWORDS           = 33;
 
 { Standard token codes }
 
@@ -63,27 +63,29 @@ DOTOK                 = 29;
 DOWNTOTOK             = 30;
 ELSETOK               = 31;
 ENDTOK                = 32;
-FORTOK                = 33;
-FUNCTIONTOK           = 34;
-IFTOK                 = 35;
-MODTOK                = 36;
-NILTOK                = 37;
-NOTTOK                = 38;
-OFTOK                 = 39;
-ORTOK                 = 40;
-PROCEDURETOK          = 41;
-PROGRAMTOK            = 42;
-RECORDTOK             = 43;
-REPEATTOK             = 44;
-SHLTOK                = 45;
-SHRTOK                = 46;
-THENTOK               = 47;
-TOTOK                 = 48;
-TYPETOK               = 49;
-UNTILTOK              = 50;
-VARTOK                = 51;
-WHILETOK              = 52;
-XORTOK                = 53;
+EXTERNALTOK           = 33;
+FORTOK                = 34;
+FUNCTIONTOK           = 35;
+IFTOK                 = 36;
+INLINETOK             = 37;
+MODTOK                = 38;
+NILTOK                = 39;
+NOTTOK                = 40;
+OFTOK                 = 41;
+ORTOK                 = 42;
+PROCEDURETOK          = 43;
+PROGRAMTOK            = 44;
+RECORDTOK             = 45;
+REPEATTOK             = 46;
+SHLTOK                = 47;
+SHRTOK                = 48;
+THENTOK               = 49;
+TOTOK                 = 50;
+TYPETOK               = 51;
+UNTILTOK              = 52;
+VARTOK                = 53;
+WHILETOK              = 54;
+XORTOK                = 55;
 
 { Non-standard token codes }
 
@@ -206,7 +208,7 @@ TName    = string [MAXNAMELENGTH];
 
 TUnit = record
         FileName  : TString;
-        Pos, Line : Integer;
+        Pos, Line : LongInt;
 end;  
   
 TParam = record
@@ -246,7 +248,6 @@ end;
 
 PIdentifier = ^TIdentifier;
 TIdentifier = record
-        id                  : Integer;
         Kind                : Byte;
         Name                : TName;
         Value               : LongInt; // Value for a constant, address for a variable, procedure or function
@@ -257,7 +258,7 @@ TIdentifier = record
         RecType             : Byte;    // Parent record type code for a field
         Scope               : Byte;
         PassMethod          : Byte;    // Value, CONST or VAR parameter status
-        NumParams           : Integer;
+        NumParams           : Byte;
         Param               : array [1..MAXPARAMS] of PParam;
         ProcAsBlock         : Byte;
         PredefIndex         : Byte;

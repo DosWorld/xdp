@@ -506,13 +506,13 @@ begin
         ABSFUNC, SQRFUNC, SINFUNC, COSFUNC, ARCTANFUNC, EXPFUNC, LNFUNC, SQRTFUNC: begin
                 CompileExpression(ValType);
                 if func in [ABSFUNC, SQRFUNC] then begin
-                        // Abs and Sqr accept real or integer parameters
+                        { Abs and Sqr accept real or integer parameters }
                         if not ((Types[ValType].TypeKind in (IntegerTypes + [REALTYPE])) or
                         ((Types[ValType].TypeKind = SUBRANGETYPE) and
                         (Types[Types[ValType].HostType].TypeKind in IntegerTypes))) then
                         Error('Numeric type expected')
                 end else begin
-                        // Try to convert integer to real
+                        { Try to convert integer to real }
                         if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
                                 GenerateFloat(0);
                                 ValType := REALTYPEINDEX;
@@ -642,7 +642,7 @@ if Tok.Kind = OPARTOK then begin
 
     Inc(NumActualParams);
 
-    // Try to convert integer to real
+    { Try to convert integer to real }
     if ConversionIsPossible(ActualParamType, CurParam^.DataType) and not IsRefParam then begin
       GenerateFloat(0);
       ActualParamType := REALTYPEINDEX;
@@ -898,9 +898,8 @@ case Tok.Kind of
           NextTok;
           end else CompileExpression(ExpressionType); // General rule - right-hand side expression
 
-        // Try to convert integer to real
-        if ConversionIsPossible(ExpressionType, DesignatorType) then
-          begin
+        { Try to convert integer to real }
+        if ConversionIsPossible(ExpressionType, DesignatorType) then begin
           GenerateFloat(0);
           ExpressionType := REALTYPEINDEX;
           end;
@@ -1100,7 +1099,7 @@ var
     if Types[RecType].Field[i]^.Name = Name then
       Error('Duplicate field');
 
-  // Add new field
+  { Add new field }
   Inc(Types[RecType].NumFields);
   New(Types[RecType].Field[Types[RecType].NumFields]);
   
@@ -1343,14 +1342,9 @@ var
 
   end;// case
 
-  if VarDataOrigin + GlobalDataSize > SEGMENTSIZE then
-    Error('Maximum global data size exceeded');
-
-  if LocalDataSize > SEGMENTSIZE then
-    Error('Maximum local data size exceeded');
-
-  if ParamDataSize > SEGMENTSIZE then
-    Error('Maximum parameter data size exceeded');
+  if VarDataOrigin + GlobalDataSize > SEGMENTSIZE then Error('Maximum global data size exceeded');
+  if LocalDataSize > SEGMENTSIZE then Error('Maximum local data size exceeded');
+  if ParamDataSize > SEGMENTSIZE then Error('Maximum parameter data size exceeded');
 
   end;// DeclareId
 
@@ -1358,11 +1352,11 @@ var
 
   procedure DeclarePredefinedIdents;
   begin
-  // Constants
+  { Constants }
   DeclareId('TRUE',  CONSTANT, 0, BOOLEANTYPEINDEX, VALPASSING, -1, 0.0, 0);
   DeclareId('FALSE', CONSTANT, 0, BOOLEANTYPEINDEX, VALPASSING,  0, 0.0, 0);
 
-  // Types
+  { Types }
   DeclareId('INTEGER',  USERTYPE, 0, INTEGERTYPEINDEX,  VALPASSING, 0, 0.0, 0);
   DeclareId('SMALLINT', USERTYPE, 0, SMALLINTTYPEINDEX, VALPASSING, 0, 0.0, 0);
   DeclareId('SHORTINT', USERTYPE, 0, SHORTINTTYPEINDEX, VALPASSING, 0, 0.0, 0);
@@ -1373,7 +1367,7 @@ var
   DeclareId('TEXT',     USERTYPE, 0, TEXTTYPEINDEX,     VALPASSING, 0, 0.0, 0);
   DeclareId('STRING',   USERTYPE, 0, STRINGTYPEINDEX,   VALPASSING, 0, 0.0, 0);
 
-  // Procedures
+  { Procedures }
   DeclareId('INC',      PROC, 0, 0, VALPASSING, 0, 0.0, INCPROC);
   DeclareId('DEC',      PROC, 0, 0, VALPASSING, 0, 0.0, DECPROC);
   DeclareId('READ',     PROC, 0, 0, VALPASSING, 0, 0.0, READPROC);
@@ -1387,7 +1381,7 @@ var
   DeclareId('HALT',     PROC, 0, 0, VALPASSING, 0, 0.0, HALTPROC);
   DeclareId('INTR',     PROC, 0, 0, VALPASSING, 0, 0.0, INTRPROC);
 
-  // Functions
+  { Functions }
   DeclareId('SIZEOF', FUNC, 0, 0, VALPASSING, 0, 0.0, SIZEOFFUNC);
   DeclareId('ORD',    FUNC, 0, 0, VALPASSING, 0, 0.0, ORDFUNC);
   DeclareId('CHR',    FUNC, 0, 0, VALPASSING, 0, 0.0, CHRFUNC);
@@ -1424,7 +1418,7 @@ var
 
   Types[POINTERTYPEINDEX].BaseType  := ANYTYPEINDEX;
 
-  // Add new anonymous type: 0..MAXSTRLENGTH
+  { Add new anonymous type: 0..MAXSTRLENGTH }
   Inc(NumTypes);
   Types[NumTypes].TypeKind := SUBRANGETYPE;
   Types[NumTypes].HostType := INTEGERTYPEINDEX;
@@ -1450,7 +1444,7 @@ var
   end; // CheckForwardResolutions
 
 
-// DeclareId
+{ DeclareId }
 begin
         Inc(BlockStackTop);
 
@@ -1699,7 +1693,7 @@ begin
       NextTok;
       end else begin
       if ForwardIdent = nil then begin
-      // New declaration
+        { New declaration }
         Inc(NumBlocks);
         LastIdent^.ProcAsBlock := NumBlocks;
         CompileBlock(LastIdent);
