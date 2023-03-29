@@ -1,4 +1,4 @@
-# XD Pascal Compiler
+# XDPC - XD Pascal Compiler
 
 This is modified XD Pascal for DOS.
 
@@ -11,7 +11,7 @@ The compiler supports VGA graphics, floating-point arithmetic, etc.
 ## Changes from original version
 * Recompiled with FPC
 * system.pas renamed in _system.pas
-* All included files ($I file} searches, also, in folder with xdp.exe
+* All included files ($I file} searches, also, in folder with xdpc.exe
 * Support LFN (long file name) for Runtime (ReWrite, Reset, DeleteFile).
 * Generation changed to EXE (small memory model)
 
@@ -41,7 +41,7 @@ The source file should be specified with its extension (.pas).
 ### Language
 
 #### Overview
-XD Pascal is a dialect of Pascal programming language that resembles
+XDPC Pascal is a dialect of Pascal programming language that resembles
 Turbo Pascal v. 3.0 with the following differences and limitations:
 * There are no labels, "goto" and "with" statements. 
 * Unsigned integers, sets, enumerations, and variant records are not supported.

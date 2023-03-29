@@ -39,7 +39,7 @@ BEGIN
         Assign(OutFile, ExeName);
         Rewrite(OutFile, 1);
         IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
-        WriteLn('Link ', ExeName, ', ', CodeSize, ' bytes code, ', NumStaticStrChars, ' bytes data.');
+        WriteLn('Write ', BaseName(ExeName), ': ', CodeSize, ' bytes code, ', NumStaticStrChars, ' bytes data.');
         BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
         BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRlocsCount);
         BlockWrite(OutFile, StaticCodeData, CodeSize);
