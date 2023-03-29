@@ -32,8 +32,8 @@ VAR     BlockIndex: Integer;
 BEGIN
         IF ParamCount <> 1 THEN BEGIN
                 WriteLn('Copyright 2010 Vasiliy Tereshkov, vtereshkov@mail.ru');
-                WriteLn('Copyright 2023 DosWorld, https://github.com/DosWorld/xdp');
-                WriteLn('XD Pascal x86 16-bit Compiler, Version ', VERSION, '/dw');
+                WriteLn('Copyright 2023 DosWorld, https://github.com/DosWorld/xdpc');
+                WriteLn('XDPC - Pascal x86 16-bit Compiler, Version ', VERSION);
                 WriteLn;
                 WriteLn('Usage:');
                 WriteLn(#9, BaseName(ParamStr(0)),' file.pas');
