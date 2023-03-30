@@ -23,7 +23,7 @@ UNIT xdlink;
 
 INTERFACE
 
-USES xdtypes;
+USES xdtypes, xdgen;
 
 PROCEDURE Link(pname : TString);
 
@@ -31,19 +31,78 @@ IMPLEMENTATION
 
 USES xdglob, xdutils;
 
+TYPE
+{$PACKRECORDS 1}
+MZ_HEADER = RECORD
+        sign         : WORD;
+        lblk_size    : WORD;
+        blk_count    : WORD;
+        relocs_count : WORD;
+        header_par   : WORD;
+        min_ext_par  : WORD;
+        max_ext_par  : WORD;
+        ss           : WORD;
+        sp           : WORD;
+        chksum       : WORD;
+        ip           : WORD;
+        cs           : WORD;
+        relocs_ofs   : WORD;
+        overlay_num  : WORD;
+END;
+
+PROCEDURE FileAlign(VAR f : File);
+VAR     buf       : ARRAY [0..15] OF BYTE;
+        count     : INTEGER;
+BEGIN
+        FillChar(buf, SizeOf(buf), #0);
+        count := $10 - (FilePos(f) AND $0F);
+        BlockWrite(f, buf, count and $0F);
+END;
+
 PROCEDURE Link(pname : TString);
-VAR     ExeName : TString;
-        OutFile : File;
+VAR     ExeName   : TString;
+        OutFile   : File;
+        ExeHeader : MZ_HEADER;
+        headerSize: LONGINT;
+        textSize  : LONGINT;
+        dataSize  : LONGINT;
+        imageSize : LONGINT;
 BEGIN
         ChangeExt(pname, 'exe', ExeName);
+
         Assign(OutFile, ExeName);
         Rewrite(OutFile, 1);
         IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
+
         WriteLn('Write ', BaseName(ExeName), ': ', CodeSize, ' bytes code, ', NumStaticStrChars, ' bytes data.');
+
+        FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
         BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
-        BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRlocsCount);
+
+        BlockWrite(OutFile, ExeRelocs, SizeOf(MZ_RELOC) * WriteExeRelocsCount);
+        FileAlign(OutFile);
+        headerSize := FilePos(OutFile);
+
         BlockWrite(OutFile, StaticCodeData, CodeSize);
+        textSize := FilePos(OutFile) - headerSize;
+
         BlockWrite(OutFile, StaticStringData, NumStaticStrChars);
+        dataSize := FilePos(OutFile) - headerSize - textSize;
+
+        imageSize := dataSize + textSize;
+
+        ExeHeader.sign := MZ_SIGN;
+        ExeHeader.header_par := headerSize shr 4;
+        ExeHeader.blk_count := (imageSize SHR 9) + 1;
+        ExeHeader.lblk_size := imageSize AND $1FF;
+        ExeHeader.relocs_ofs := SizeOf(MZ_HEADER);
+        ExeHeader.min_ext_par := $2000 - (dataSize shr 4);
+        ExeHeader.max_ext_par := ExeHeader.min_ext_par;
+        ExeHeader.relocs_count := WriteExeRelocsCount;
+        ExeHeader.sp := $FFFE;
+        ExeHeader.ss := (imageSize shr 4) + $1000;
+        Seek(OutFile, 0);
+        BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
         Close(OutFile);
 END;
 

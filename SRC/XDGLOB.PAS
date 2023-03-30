@@ -68,16 +68,16 @@ CONST
 VAR
 Types: array [1..MAXTYPES] of TType;
 UnitStack: array [1..MAXUNITNESTING] of TUnit;
-ExeHeader : MZ_HEADER;
+
 ExeRelocs : array[0..1023] of MZ_RELOC;
-WriteExeRlocsCount : integer;
+WriteExeRelocsCount : word;
+
 StaticCodeData: array [0..65535] of Byte;
 StaticStringData: array [0..MAXSTATICSTRDATASIZE - 1] of Char;
-CodePosStack: array [0..1023] of Integer;
+CodePosStack: array [0..1023] of LongInt;
 BlockStack: array [1..MAXNESTING] of Byte;
 CallGraph: array [0..MAXBLOCKS - 1, 0..MAXBLOCKS div 8 - 1] of Byte;    // Rows are callers, columns are callees
 BlockIsNotDead: array [1..MAXBLOCKS] of Boolean;
-
 
 NumTypes, VarDataOrigin, NumBlocks, BlockStackTop,
 CodePosStackTop,
@@ -114,10 +114,7 @@ begin
         CodePosStackTop := 0;
         NumStaticStrChars := 0;
         GlobalDataSize := 0;
-        WriteExeRlocsCount := 0;
-        FillChar(ExeHeader, SizeOf(MZ_HEADER), #0);
-        ExeHeader.sign := MZ_SIGN;
-        ExeHeader.sp := $FFFE;
+        WriteExeRelocsCount := 0;
 end;
 
 FUNCTION strhash(s : STRING):WORD;

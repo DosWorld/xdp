@@ -25,7 +25,7 @@ program XDPC;
 USES xdtypes, xdglob, xdutils, xdscan, xdpars, xdopt, xdlink;
 
 CONST
-VERSION = '0.7.13';
+VERSION = '0.7.14';
 
 VAR     BlockIndex: Integer;
 

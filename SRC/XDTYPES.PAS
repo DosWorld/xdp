@@ -267,24 +267,6 @@ TIdentifier = record
         next                : PIdentifier;
 end;
 
-{$PACKRECORDS 1}
-MZ_HEADER = RECORD
-        sign         : WORD;
-        lblk_size    : WORD;
-        blk_count    : WORD;
-        relocs_count : WORD;
-        header_par   : WORD;
-        min_ext_par  : WORD;
-        max_ext_par  : WORD;
-        ss           : WORD;
-        sp           : WORD;
-        chksum       : WORD;
-        ip           : WORD;
-        cs           : WORD;
-        relocs_ofs   : WORD;
-        overlay_num  : WORD;
-END;
-
 MZ_RELOC = RECORD
         ofs : WORD;
         seg : WORD;

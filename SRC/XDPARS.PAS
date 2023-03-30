@@ -81,9 +81,6 @@ begin
         end;
 end;
 
-
-
-
 procedure CompileConstTerm(var ConstVal: TConst; var ConstValType: Byte);
 var     OpTok             : TToken;
         RightConstVal     : TConst;
@@ -115,25 +112,25 @@ begin
                 ConstValType := GetCompatibleType(ConstValType, RightConstValType);
                 CheckOperator(OpTok.Kind, ConstValType);
 
-  if Types[ConstValType].TypeKind = REALTYPE then
-    case OpTok.Kind of
-      MULTOK:  ConstVal.FracValue := ConstVal.FracValue * RightConstVal.FracValue;
-      DIVTOK:  if RightConstVal.FracValue <> 0 then
-                 ConstVal.FracValue := ConstVal.FracValue / RightConstVal.FracValue
-               else Error('Constant division by zero');
-  end else
-    case OpTok.Kind of             
-      MULTOK:  ConstVal.Value := ConstVal.Value * RightConstVal.Value;
-      IDIVTOK: if RightConstVal.Value <> 0 then
-                 ConstVal.Value := ConstVal.Value div RightConstVal.Value
-               else  Error('Constant division by zero');  
-      MODTOK:  if RightConstVal.Value <> 0 then
-                 ConstVal.Value := ConstVal.Value mod RightConstVal.Value
-               else Error('Constant division by zero');
-      SHLTOK:  ConstVal.Value := ConstVal.Value shl RightConstVal.Value;
-      SHRTOK:  ConstVal.Value := ConstVal.Value shr RightConstVal.Value;
-      ANDTOK:  ConstVal.Value := ConstVal.Value and RightConstVal.Value;
-    end;
+                if Types[ConstValType].TypeKind = REALTYPE then
+                        case OpTok.Kind of
+                        MULTOK:  ConstVal.FracValue := ConstVal.FracValue * RightConstVal.FracValue;
+                        DIVTOK:  if RightConstVal.FracValue <> 0 then
+                                 ConstVal.FracValue := ConstVal.FracValue / RightConstVal.FracValue
+                               else Error('Constant division by zero');
+                        end
+                else case OpTok.Kind of             
+                MULTOK:  ConstVal.Value := ConstVal.Value * RightConstVal.Value;
+                IDIVTOK: if RightConstVal.Value <> 0 then
+                         ConstVal.Value := ConstVal.Value div RightConstVal.Value
+                       else  Error('Constant division by zero');  
+                MODTOK:  if RightConstVal.Value <> 0 then
+                         ConstVal.Value := ConstVal.Value mod RightConstVal.Value
+                       else Error('Constant division by zero');
+                SHLTOK:  ConstVal.Value := ConstVal.Value shl RightConstVal.Value;
+                SHRTOK:  ConstVal.Value := ConstVal.Value shr RightConstVal.Value;
+                ANDTOK:  ConstVal.Value := ConstVal.Value and RightConstVal.Value;
+                end;
 
         end;
 end;
@@ -176,21 +173,19 @@ begin
                 ConstValType := GetCompatibleType(ConstValType, RightConstValType);
                 CheckOperator(OpTok.Kind, ConstValType);
 
-  if Types[ConstValType].TypeKind = REALTYPE then
-    case OpTok.Kind of
-      PLUSTOK:  ConstVal.FracValue := ConstVal.FracValue  +  RightConstVal.FracValue;
-      MINUSTOK: ConstVal.FracValue := ConstVal.FracValue  -  RightConstVal.FracValue;
-    end
-  else
-    case OpTok.Kind of
-      PLUSTOK:  ConstVal.Value := ConstVal.Value  +  RightConstVal.Value;
-      MINUSTOK: ConstVal.Value := ConstVal.Value  -  RightConstVal.Value;
-      ORTOK:    ConstVal.Value := ConstVal.Value  or RightConstVal.Value;
-      XORTOK:   ConstVal.Value := ConstVal.Value xor RightConstVal.Value;
-    end;
-
-  end;
-
+                if Types[ConstValType].TypeKind = REALTYPE then
+                case OpTok.Kind of
+                PLUSTOK:  ConstVal.FracValue := ConstVal.FracValue  +  RightConstVal.FracValue;
+                MINUSTOK: ConstVal.FracValue := ConstVal.FracValue  -  RightConstVal.FracValue;
+                end
+                else
+                case OpTok.Kind of
+                PLUSTOK:  ConstVal.Value := ConstVal.Value  +  RightConstVal.Value;
+                MINUSTOK: ConstVal.Value := ConstVal.Value  -  RightConstVal.Value;
+                ORTOK:    ConstVal.Value := ConstVal.Value  or RightConstVal.Value;
+                XORTOK:   ConstVal.Value := ConstVal.Value xor RightConstVal.Value;
+                end;
+        end;
 end;
 
 
@@ -203,12 +198,10 @@ var     OpTok             : TToken;
 begin
         Yes := FALSE;
         CompileSimpleConstExpression(ConstVal, ConstValType);
-
         if Tok.Kind in [EQTOK, NETOK, LTTOK, LETOK, GTTOK, GETOK] then begin
                 OpTok := Tok;
                 NextTok;
                 CompileSimpleConstExpression(RightConstVal, RightConstValType);
-
                 if ConversionIsPossible(ConstValType, RightConstValType) then begin
                         ConstVal.FracValue := ConstVal.Value;
                         ConstValType := REALTYPEINDEX;
@@ -217,10 +210,8 @@ begin
                         RightConstVal.FracValue := RightConstVal.Value;
                         RightConstValType := REALTYPEINDEX;
                 end;
-
                 GetCompatibleType(ConstValType, RightConstValType);
                 CheckOperator(OpTok.Kind, ConstValType);
-
                 if Types[ConstValType].TypeKind = REALTYPE then
                         case OpTok.Kind of
                         EQTOK: Yes := ConstVal.FracValue =  RightConstVal.FracValue;
@@ -237,12 +228,9 @@ begin
                         GTTOK: Yes := ConstVal.Value >  RightConstVal.Value;
                         GETOK: Yes := ConstVal.Value >= RightConstVal.Value;
                 end;
-
                 if Yes then ConstVal.Value := -1 else ConstVal.Value := 0;
-  
                 ConstValType := BOOLEANTYPEINDEX;
         end;
-
 end;
 
 
@@ -253,7 +241,6 @@ var     DesignatorType, ExpressionType, ActualParamType: Byte;
         IsFirstParam, FileSpecified: Boolean;
 begin
         NextTok;
-
         case proc of
         INCPROC, DECPROC: begin
                 EatTok(OPARTOK);
@@ -270,12 +257,12 @@ begin
                 if Tok.Kind = OPARTOK then begin
                         NextTok;
                         WHILE TRUE DO BEGIN
-                                // 1st argument - file handle
+                                { 1st argument - file handle }
                                 if FileSpecified then RestoreFileHandle
                                 else PushConst(0);
-                                // 2nd argument - string stream handle
+                                { 2nd argument - string stream handle }
                                 PushConst(0);
-                                // 3rd argument - designator
+                                { 3rd argument - designator }
                                 CompileDesignator(DesignatorType);
         
                                 if Types[DesignatorType].TypeKind = TEXTTYPE then begin
@@ -285,24 +272,23 @@ begin
                                         SaveFileHandle;
                                 end else begin
                                         LibProcIdent := nil;
+                                        if (Types[DesignatorType].TypeKind in IntegerTypes) or
+                                              ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
+                                              (Types[Types[DesignatorType].HostType].TypeKind in IntegerTypes)) then
+                                                              LibProcIdent := FindIdent('READINT')
+                                        else if (Types[DesignatorType].TypeKind = CHARTYPE) or
+                                                ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
+                                                (Types[Types[DesignatorType].HostType].TypeKind = CHARTYPE)) then
+                                                LibProcIdent := FindIdent('READCH')
+                                        else if Types[DesignatorType].TypeKind = REALTYPE then
+                                                LibProcIdent := FindIdent('READREAL')
+                                        else if (Types[DesignatorType].TypeKind = ARRAYTYPE) and (Types[DesignatorType].BaseType = CHARTYPEINDEX) then
+                                                LibProcIdent := FindIdent('READSTRING')
+                                        else Error('Incompatible types');
 
-          if (Types[DesignatorType].TypeKind in IntegerTypes) or
-            ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
-             (Types[Types[DesignatorType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdent := FindIdent('READINT')
-          else if (Types[DesignatorType].TypeKind = CHARTYPE) or
-            ((Types[DesignatorType].TypeKind = SUBRANGETYPE) and
-             (Types[Types[DesignatorType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdent := FindIdent('READCH')
-          else if Types[DesignatorType].TypeKind = REALTYPE then
-                LibProcIdent := FindIdent('READREAL')
-          else if (Types[DesignatorType].TypeKind = ARRAYTYPE) and (Types[DesignatorType].BaseType = CHARTYPEINDEX) then
-                LibProcIdent := FindIdent('READSTRING')
-          else Error('Incompatible types');
-
-          { Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator }
-          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
-          GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
+                                        { Call the specific output subroutine. Interface: FileHandle; StreamHandle; var Designator }
+                                        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+                                        GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
                                 end;
         
                                 IsFirstParam := FALSE;
@@ -312,21 +298,19 @@ begin
                         EatTok(CPARTOK);
                 end; // if OPARTOR
       
-    // Add CR+LF, if necessary
+                { Add CR+LF, if necessary }
                 if proc = READLNPROC then begin
                         LibProcIdent := FindIdent('READNEWLINE');
-                        // 1st argument - file handle
+                        { 1st argument - file handle }
                         if FileSpecified then RestoreFileHandle
                         else PushConst(0);
-                        // 2nd argument - string stream handle
+                        { 2nd argument - string stream handle }
                         PushConst(0);
 
                         if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
                         GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
                 end;
         end;
-
-
         WRITEPROC, WRITELNPROC: begin
                 FileSpecified := FALSE;
                 IsFirstParam := TRUE;
@@ -334,107 +318,95 @@ begin
                 if Tok.Kind = OPARTOK then begin
                         NextTok;
                         WHILE TRUE DO BEGIN
-        // 1st argument - file handle
-        if FileSpecified then RestoreFileHandle
-        else PushConst(0);
+                                { 1st argument - file handle }
+                                if FileSpecified then RestoreFileHandle
+                                else PushConst(0);
+                                
+                                { 2nd argument - string stream handle }
+                                PushConst(0);
+                                
+                                { 3rd argument - expression }
+                                CompileExpression(ExpressionType);
 
-        // 2nd argument - string stream handle
-        PushConst(0);
-
-        // 3rd argument - expression
-        CompileExpression(ExpressionType);
-
-        if Types[ExpressionType].TypeKind = TEXTTYPE then begin
-          if not IsFirstParam then Error('Incompatible types');
-          FileSpecified := TRUE;
-          SaveFileHandle;
-          end
-        else begin
-          LibProcIdent := nil;
+                                if Types[ExpressionType].TypeKind = TEXTTYPE then begin
+                                        if not IsFirstParam then Error('Incompatible types');
+                                        FileSpecified := TRUE;
+                                        SaveFileHandle;
+                                end else begin
+                                        LibProcIdent := nil;
           
-          if (Types[ExpressionType].TypeKind in IntegerTypes) or
-            ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
-             (Types[Types[ExpressionType].HostType].TypeKind in IntegerTypes)) then
-                LibProcIdent := FindIdent('WRITEINT')
-          else if (Types[ExpressionType].TypeKind = BOOLEANTYPE) or
-            ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
-             (Types[Types[ExpressionType].HostType].TypeKind = BOOLEANTYPE)) then
-                LibProcIdent := FindIdent('WRITEBOOLEAN')
-          else if (Types[ExpressionType].TypeKind = CHARTYPE) or
-            ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
-             (Types[Types[ExpressionType].HostType].TypeKind = CHARTYPE)) then
-                LibProcIdent := FindIdent('WRITECH')
-          else if Types[ExpressionType].TypeKind = REALTYPE then
-                LibProcIdent := FindIdent('WRITEREAL')
-          else if Types[ExpressionType].TypeKind = POINTERTYPE then
-                LibProcIdent := FindIdent('WRITEPOINTER')
-          else if (Types[ExpressionType].TypeKind = ARRAYTYPE) and (Types[ExpressionType].BaseType = CHARTYPEINDEX) then
-                LibProcIdent := FindIdent('WRITESTRING')
-          else Error('Incompatible types');
+                                        if (Types[ExpressionType].TypeKind in IntegerTypes) or
+                                        ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
+                                        (Types[Types[ExpressionType].HostType].TypeKind in IntegerTypes)) then
+                                                LibProcIdent := FindIdent('WRITEINT')
+                                        else if (Types[ExpressionType].TypeKind = BOOLEANTYPE) or
+                                        ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
+                                        (Types[Types[ExpressionType].HostType].TypeKind = BOOLEANTYPE)) then
+                                                LibProcIdent := FindIdent('WRITEBOOLEAN')
+                                        else if (Types[ExpressionType].TypeKind = CHARTYPE) or
+                                        ((Types[ExpressionType].TypeKind = SUBRANGETYPE) and
+                                        (Types[Types[ExpressionType].HostType].TypeKind = CHARTYPE)) then
+                                                LibProcIdent := FindIdent('WRITECH')
+                                        else if Types[ExpressionType].TypeKind = REALTYPE then
+                                                LibProcIdent := FindIdent('WRITEREAL')
+                                        else if Types[ExpressionType].TypeKind = POINTERTYPE then
+                                                LibProcIdent := FindIdent('WRITEPOINTER')
+                                        else if (Types[ExpressionType].TypeKind = ARRAYTYPE) and (Types[ExpressionType].BaseType = CHARTYPEINDEX) then
+                                                LibProcIdent := FindIdent('WRITESTRING')
+                                        else Error('Incompatible types');
 
-          { Call the specific output subroutine. Interface: FileHandle; StreamHandle; Expression }
-          if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
-          GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
-          end;
+                                        { Call the specific output subroutine. Interface: FileHandle; StreamHandle; Expression }
+                                        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+                                                GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
+                                end;
 
-        IsFirstParam := FALSE;
+                                IsFirstParam := FALSE;
 
-        if Tok.Kind = COMMATOK then NextTok else BREAK;
-      END;
-      EatTok(CPARTOK);
-      end; // if OPARTOR
+                                if Tok.Kind = COMMATOK then NextTok else BREAK;
+                        END;
+                        EatTok(CPARTOK);
+                end;
       
-    // Add CR+LF, if necessary
-    if proc = WRITELNPROC then begin
-      LibProcIdent := FindIdent('WRITENEWLINE');
-      
-      // 1st argument - file handle
-      if FileSpecified then RestoreFileHandle
-      else PushConst(0);
-
-      // 2nd argument - string stream handle
-      PushConst(0);
-
-      if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
-      GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
-      end;
-
-    end;
-  INPPROC, OUTPPROC: begin
-    EatTok(OPARTOK);
-    CompileExpression(ExpressionType);
-    GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);
-    EatTok(COMMATOK);
-    if proc = INPPROC then
-      CompileDesignator(ExpressionType)
-    else
-      CompileExpression(ExpressionType);
-    GetCompatibleType(ExpressionType, SHORTINTTYPEINDEX);
-    GenerateInpOutp(proc);
-    EatTok(CPARTOK);
-    end;
-
-  NEWPROC, DISPOSEPROC: begin
-    EatTok(OPARTOK);
-    AssertIdent;
-    CompileDesignator(DesignatorType);
-    GetCompatibleType(DesignatorType, POINTERTYPEINDEX);
-    GenerateNewDispose(proc, TypeSize(Types[DesignatorType].BaseType));
-    EatTok(CPARTOK);
-    end;
-
-  HALTPROC: begin
-    if Tok.Kind = OPARTOK then begin
-      NextTok;
-      CompileConstExpression(ErrorCode, ExpressionType);
-      GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);
-      EatTok(CPARTOK);
-      end
-    else
-      ErrorCode.Value := 0;
-    GenerateHalt(ErrorCode.Value);
-    end;
-
+                { Add CR+LF, if necessary }
+                if proc = WRITELNPROC then begin
+                        LibProcIdent := FindIdent('WRITENEWLINE');
+                        { 1st argument - file handle }
+                        if FileSpecified then RestoreFileHandle
+                        else PushConst(0);
+                        { 2nd argument - string stream handle }
+                        PushConst(0);
+                        if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], LibProcIdent^.ProcAsBlock);
+                        GenerateCall(LibProcIdent^.Value, BlockStackTop - LibProcIdent^.NestingLevel);
+                end;
+        end;
+        INPPROC, OUTPPROC: begin
+                EatTok(OPARTOK);
+                CompileExpression(ExpressionType);
+                GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);
+                EatTok(COMMATOK);
+                if proc = INPPROC then CompileDesignator(ExpressionType)
+                else CompileExpression(ExpressionType);
+                GetCompatibleType(ExpressionType, SHORTINTTYPEINDEX);
+                GenerateInpOutp(proc);
+                EatTok(CPARTOK);
+        end;
+        NEWPROC, DISPOSEPROC: begin
+                EatTok(OPARTOK);
+                AssertIdent;
+                CompileDesignator(DesignatorType);
+                GetCompatibleType(DesignatorType, POINTERTYPEINDEX);
+                GenerateNewDispose(proc, TypeSize(Types[DesignatorType].BaseType));
+                EatTok(CPARTOK);
+        end;
+        HALTPROC: begin
+                if Tok.Kind = OPARTOK then begin
+                        NextTok;
+                        CompileConstExpression(ErrorCode, ExpressionType);
+                        GetCompatibleType(ExpressionType, INTEGERTYPEINDEX);
+                        EatTok(CPARTOK);
+                end else ErrorCode.Value := 0;
+                GenerateHalt(ErrorCode.Value);
+        end;
         INTRPROC: begin
                 EatTok(OPARTOK);
                 CompileConstExpression(InterruptNumber, ActualParamType);
@@ -446,18 +418,13 @@ begin
                 EatTok(CPARTOK);
         end;
         end;
-
 end;
 
-
-
 procedure CompilePredefinedFunc(func: Byte; var ValType: Byte);
-var
-  PIdent : PIdentifier;
+var     PIdent : PIdentifier;
 begin
         NextTok;
         EatTok(OPARTOK);
-
         case func of
         SIZEOFFUNC: begin
                 AssertIdent;
@@ -467,7 +434,7 @@ begin
                         PushConst(TypeSize(PIdent^.DataType));
                 end else begin
                         CompileDesignator(ValType);
-                        SaveStackTop;                        // Save result to EDX
+                        SaveStackTop;                        { Save result to EDX }
                         PushConst(TypeSize(ValType));
                 end;
                 ValType := INTEGERTYPEINDEX;
@@ -475,7 +442,7 @@ begin
         ROUNDFUNC, TRUNCFUNC: begin
                 CompileExpression(ValType);
 
-                // Try to convert integer to real
+                { Try to convert integer to real }
                 if ConversionIsPossible(ValType, REALTYPEINDEX) then begin
                         GenerateFloat(0);
                         ValType := REALTYPEINDEX;
@@ -520,16 +487,11 @@ begin
 
                         GetCompatibleType(ValType, REALTYPEINDEX);
                 end;
-
                 GenerateMathFunction(func, ValType);
         end;
-        end;// case
+        end;
         EatTok(CPARTOK);
 end;
-
-
-
-
 
 procedure CompileDesignator(var ValType: Byte);
 var     FieldIndex: Integer;
@@ -548,53 +510,44 @@ begin
         ValType := PIdent^.DataType;
 
 
-if Types[PIdent^.DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
-  IsRefParam := PIdent^.PassMethod in [CONSTPASSING, VARPASSING]    // For structured parameters, CONST is equivalent to VAR
-else
-  IsRefParam := PIdent^.PassMethod = VARPASSING;                    // For scalar parameters, CONST is equivalent to passing by value
+        if Types[PIdent^.DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
+                IsRefParam := PIdent^.PassMethod in [CONSTPASSING, VARPASSING] { For structured parameters, CONST is equivalent to VAR }
+        else
+                IsRefParam := PIdent^.PassMethod = VARPASSING; { For scalar parameters, CONST is equivalent to passing by value }
 
-if IsRefParam then DerefPtr(POINTERTYPEINDEX);                                // Parameter is passed by reference
+        if IsRefParam then DerefPtr(POINTERTYPEINDEX);  { Parameter is passed by reference }
 
+        NextTok;
 
-NextTok;
-
-while Tok.Kind in [DEREFERENCETOK, OBRACKETTOK, PERIODTOK] do
-  if Tok.Kind = DEREFERENCETOK then                           // Pointer dereferencing
-    begin
-    if (Types[ValType].TypeKind <> POINTERTYPE) or (Types[ValType].BaseType = ANYTYPEINDEX) then
-      Error('Typed pointer expected');
-    DerefPtr(ValType);
-    ValType := Types[ValType].BaseType;
-    NextTok;
-    end
-  else if Tok.Kind = OBRACKETTOK then                         // Array element access
-    begin
-    repeat
-      if Types[ValType].TypeKind <> ARRAYTYPE then
-        Error('Array expected');
-      NextTok;
-      CompileExpression(ArrayIndexType);                        // Array index
-      GetCompatibleType(ArrayIndexType, Types[ValType].IndexType);
-      GetArrayElementPtr(ValType);
-      ValType := Types[ValType].BaseType;
-    until Tok.Kind <> COMMATOK;
-    EatTok(CBRACKETTOK);
-    end
-  else if Tok.Kind = PERIODTOK then                           // Record field access
-    begin
-    if Types[ValType].TypeKind <> RECORDTYPE then
-      Error('Record expected');
-    NextTok;
-    AssertIdent;
-    FieldIndex := GetField(ValType, Tok.Name);
-    GetFieldPtr(ValType, FieldIndex);
-    ValType := Types[ValType].Field[FieldIndex]^.DataType;
-    NextTok;   
-    end;
-end; // CompileDesignator
-
-
-
+        while Tok.Kind in [DEREFERENCETOK, OBRACKETTOK, PERIODTOK] do
+        if Tok.Kind = DEREFERENCETOK then begin
+                { Pointer dereferencing }
+                if (Types[ValType].TypeKind <> POINTERTYPE) or (Types[ValType].BaseType = ANYTYPEINDEX) then Error('Typed pointer expected');
+                DerefPtr(ValType);
+                ValType := Types[ValType].BaseType;
+                NextTok;
+        end else if Tok.Kind = OBRACKETTOK then begin
+                { Array element access }
+                repeat
+                        if Types[ValType].TypeKind <> ARRAYTYPE then Error('Array expected');
+                        NextTok;
+                        CompileExpression(ArrayIndexType); { Array index }
+                        GetCompatibleType(ArrayIndexType, Types[ValType].IndexType);
+                        GetArrayElementPtr(ValType);
+                        ValType := Types[ValType].BaseType;
+                until Tok.Kind <> COMMATOK;
+                EatTok(CBRACKETTOK);
+        end else if Tok.Kind = PERIODTOK then begin
+                { Record field access }
+                if Types[ValType].TypeKind <> RECORDTYPE then Error('Record expected');
+                NextTok;
+                AssertIdent;
+                FieldIndex := GetField(ValType, Tok.Name);
+                GetFieldPtr(ValType, FieldIndex);
+                ValType := Types[ValType].Field[FieldIndex]^.DataType;
+                NextTok;   
+        end;
+end;
 
 procedure CompileActualParameters(PIdent : PIdentifier);
 var     NumActualParams: Integer;
@@ -602,60 +555,49 @@ var     NumActualParams: Integer;
         IsRefParam, TreatCharAsString: Boolean;
         CurParam: PParam;
 begin
-NumActualParams := 0;
+        NumActualParams := 0;
 
-if Tok.Kind = OPARTOK then begin
-  repeat
-    NextTok;
-
-    if NumActualParams + 1 > PIdent^.NumParams then
-      Error('Too many actual parameters');
-
-    CurParam := PIdent^.Param[NumActualParams + 1];
-
-    // Evaluate actual parameters and push them onto the stack
-
-    TreatCharAsString := (Tok.Kind = CHARLITERALTOK) and (CurParam^.DataType = STRINGTYPEINDEX);
-
-    if (Tok.Kind = STRINGLITERALTOK) or TreatCharAsString then begin
-      if CurParam^.PassMethod <> CONSTPASSING then
-        Error('String literals can be passed as CONST only');
-      IsRefParam := FALSE;
-      end
-    else
-      if Types[CurParam^.DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
-        IsRefParam := CurParam^.PassMethod in [CONSTPASSING, VARPASSING]    // For structured parameters, CONST is equivalent to VAR
-      else
-        IsRefParam := CurParam^.PassMethod = VARPASSING;                    // For scalar parameters, CONST is equivalent to passing by value
-
-    if TreatCharAsString then
-      begin                                     // Special case
-      PushVarPtr(Tok.StrAddress, GLOBAL, 0);
-      ActualParamType := STRINGTYPEINDEX;
-      NextTok;
-      end
-    else
-      if IsRefParam then                        // General rule
-        CompileDesignator(ActualParamType)
-      else
-        CompileExpression(ActualParamType);
-
-    Inc(NumActualParams);
-
-    { Try to convert integer to real }
-    if ConversionIsPossible(ActualParamType, CurParam^.DataType) and not IsRefParam then begin
-      GenerateFloat(0);
-      ActualParamType := REALTYPEINDEX;
-      end;
-
-    GetCompatibleType(CurParam^.DataType, ActualParamType);
-  until Tok.Kind <> COMMATOK;
-
-  EatTok(CPARTOK);
-  end;// if Tok.Kind = OPARTOR
-
+        if Tok.Kind = OPARTOK then begin
+                repeat
+                        NextTok;
+                        if NumActualParams + 1 > PIdent^.NumParams then Error('Too many actual parameters');
+                        CurParam := PIdent^.Param[NumActualParams + 1];
+        
+                        { Evaluate actual parameters and push them onto the stack }
+        
+                        TreatCharAsString := (Tok.Kind = CHARLITERALTOK) and (CurParam^.DataType = STRINGTYPEINDEX);
+        
+                        if (Tok.Kind = STRINGLITERALTOK) or TreatCharAsString then begin
+                                if CurParam^.PassMethod <> CONSTPASSING then Error('String literals can be passed as CONST only');
+                                IsRefParam := FALSE;
+                        end else if Types[CurParam^.DataType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
+                                IsRefParam := CurParam^.PassMethod in [CONSTPASSING, VARPASSING] { For structured parameters, CONST is equivalent to VAR }
+                        else
+                                IsRefParam := CurParam^.PassMethod = VARPASSING; { For scalar parameters, CONST is equivalent to passing by value }
+        
+                        if TreatCharAsString then begin
+                                { Special case }
+                                PushVarPtr(Tok.StrAddress, GLOBAL, 0);
+                                ActualParamType := STRINGTYPEINDEX;
+                                NextTok;
+                        end else if IsRefParam then { General rule }
+                                CompileDesignator(ActualParamType)
+                        else
+                                CompileExpression(ActualParamType);
+        
+                        Inc(NumActualParams);
+        
+                        { Try to convert integer to real }
+                        if ConversionIsPossible(ActualParamType, CurParam^.DataType) and not IsRefParam then begin
+                                GenerateFloat(0);
+                                ActualParamType := REALTYPEINDEX;
+                        end;
+        
+                        GetCompatibleType(CurParam^.DataType, ActualParamType);
+                until Tok.Kind <> COMMATOK;
+                EatTok(CPARTOK);
+        end;
         if NumActualParams < PIdent^.NumParams then Error('Too few actual parameters');
-  
 end;
 
         
@@ -668,49 +610,44 @@ begin
         case Tok.Kind of
         IDENTTOK: begin
                 PIdent := FindIdent(Tok.Name);
-    if PIdent^.Kind = PROC then
-      Error('Expression expected but procedure ' + PIdent^.Name + ' found')
-    else if PIdent^.Kind = FUNC then                                      // Function call
-      if PIdent^.PredefIndex <> 0 then                                    // Predefined function call
+                if PIdent^.Kind = PROC then
+                        Error('Expression expected but procedure ' + PIdent^.Name + ' found')
+                else if PIdent^.Kind = FUNC then
+                { Function call }
+      if PIdent^.PredefIndex <> 0 then
+      { Predefined function call }
         CompilePredefinedFunc(PIdent^.PredefIndex, ValType)
-      else                                                                          // User-defined function call
-        begin
+      else begin
+      { User-defined function call }
         NextTok;
         CompileActualParameters(PIdent);
         if Pass = CALLDETERMPASS then AddCallGraphChild(BlockStack[BlockStackTop], PIdent^.ProcAsBlock);
         GenerateCall(PIdent^.Value, BlockStackTop - PIdent^.NestingLevel);
         RestoreStackTop;
         ValType := PIdent^.DataType;
-        end // FUNC
-    else if PIdent^.Kind = VARIABLE then            // Designator
-      begin
-      CompileDesignator(ValType);
-      if not (Types[ValType].TypeKind in [ARRAYTYPE, RECORDTYPE]) then  // Factors of type 'array' or 'record' should contain a pointer to them
-        DerefPtr(ValType);
-      end
-    else if PIdent^.Kind = CONSTANT then            // Constant
-      begin
-      ValType := PIdent^.DataType;
-      if ValType = REALTYPE then
-        PushConst(Integer((Pointer(@PIdent^.FracValue))^))
-      else
-        PushConst(PIdent^.Value);
-      NextTok;
-      end
-    else                                                      // Type cast
-      begin
-      NextTok;
-      EatTok(OPARTOK);
-      CompileExpression(ValType);
-      EatTok(CPARTOK);
+        end else if PIdent^.Kind = VARIABLE then begin
+                CompileDesignator(ValType);
+                if not (Types[ValType].TypeKind in [ARRAYTYPE, RECORDTYPE]) then
+                        { Factors of type 'array' or 'record' should contain a pointer to them }
+                        DerefPtr(ValType);
+                end else if PIdent^.Kind = CONSTANT then begin
+                        ValType := PIdent^.DataType;
+                        if ValType = REALTYPE then PushConst(Integer((Pointer(@PIdent^.FracValue))^))
+                        else PushConst(PIdent^.Value);
+                        NextTok;
+                end else begin
+                        { Type cast }
+                        NextTok;
+                        EatTok(OPARTOK);
+                        CompileExpression(ValType);
+                        EatTok(CPARTOK);
 
-      if not ((Types[PIdent^.DataType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE]) and
-              (Types[ValType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE])) then
-        Error('Invalid typecast');
-
-      ValType := PIdent^.DataType;
-      end;
-    end;
+                        if not ((Types[PIdent^.DataType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE]) and
+                        (Types[ValType].TypeKind in OrdinalTypes + [TEXTTYPE, POINTERTYPE])) then
+                                Error('Invalid typecast');
+                        ValType := PIdent^.DataType;
+                end;
+        end;
         ADDRESSTOK: begin
                 NextTok;
                 CompileDesignator(ValType);
@@ -872,7 +809,7 @@ case Tok.Kind of
   IDENTTOK: begin
     PIdent := FindIdent(Tok.Name);
     case PIdent^.Kind of
-      VARIABLE, FUNC:                                                 // Variable or function result assignment
+      VARIABLE, FUNC:  // Variable or function result assignment
         begin
         if PIdent^.Kind = VARIABLE then
           CompileDesignator(DesignatorType)
@@ -891,8 +828,8 @@ case Tok.Kind of
         EatTok(ASSIGNTOK);
 
         TreatCharAsString := (Tok.Kind = CHARLITERALTOK) and (DesignatorType = STRINGTYPEINDEX);
-        if TreatCharAsString then
-          begin                                                       // Special case
+        if TreatCharAsString then begin
+          { Special case }
           PushVarPtr(Tok.StrAddress, GLOBAL, 0);
           ExpressionType := STRINGTYPEINDEX;
           NextTok;
@@ -945,8 +882,8 @@ case Tok.Kind of
                 CompileStatement;
         end;
 
-    GenerateIfElseEpilog;
-    end;
+        GenerateIfElseEpilog;
+   end;
 
   CASETOK: begin
     NextTok;
@@ -960,7 +897,6 @@ case Tok.Kind of
     NumCaseStatements := 0;
 
     WHILE TRUE DO BEGIN
-
       WHILE TRUE DO BEGIN
         CompileConstExpression(ConstVal, ConstValType);
         GetCompatibleType(ConstValType, SelectorType);
@@ -1277,7 +1213,6 @@ var
   LocalDataSize, ParamDataSize: LongInt;
   NumIdentInList, IdentInListIndex, ParamIndex, FieldIndex, TypeIndex: Integer;
   ConstVal: TConst;
-  ExitLoop: Boolean;
   ListPassMethod: Byte;
   VarType, ConstValType: Byte;
   newIdent, ForwardIdent, PIdent : PIdentifier;
@@ -1455,12 +1390,12 @@ begin
         LocalDataSize := 0;
 
         if BlockStack[BlockStackTop] = 1 then begin
-                // Main program
+                { Main program }
                 DeclarePredefinedTypes;
                 DeclarePredefinedIdents;
                 GenerateProgramProlog;
         end else begin
-                // DeclareId parameters like local variables
+                { DeclareId parameters like local variables }
                 for ParamIndex := 1 to BlockIdent^.NumParams do
                         DeclareId(BlockIdent^.Param[ParamIndex]^.Name,
                                 VARIABLE,
@@ -1471,13 +1406,12 @@ begin
                                 0.0,
                                 0);
 
-                // Allocate Result variable if the current block is a function
+                { Allocate Result variable if the current block is a function }
                 if BlockIdent^.Kind = FUNC then DeclareId('RESULT', VARIABLE,
                         0, BlockIdent^.DataType, VALPASSING, 0, 0.0, 0);
-                end;// else
+                end;
 
                 GenerateDeclarationProlog;
-
 
                 while Tok.Kind in [CONSTTOK, TYPETOK, VARTOK, PROCEDURETOK, FUNCTIONTOK] do begin
                         if Tok.Kind = CONSTTOK then begin
@@ -1497,8 +1431,7 @@ begin
                                         EatTok(SEMICOLONTOK);
                                 until Tok.Kind <> IDENTTOK;
 
-                        end;// if CONSTTOK
-                        if Tok.Kind = TYPETOK then begin
+                        end else if Tok.Kind = TYPETOK then begin
                                 NextTok;
                                 repeat
                                         AssertIdent;
@@ -1511,130 +1444,103 @@ begin
                                                 VALPASSING,
                                                 0, 0.0, 0);
 
-      // Check if this type was forward-referenced
+      { Check if this type was forward-referenced }
       for TypeIndex := 1 to NumTypes do
         if (Types[TypeIndex].TypeKind = FORWARDTYPE) and
            (Types[TypeIndex].TypeIdentName = NameTok.Name) and
-           (Types[TypeIndex].Block = BlockStack[BlockStackTop]) then
-          begin
-          // Forward type reference resolution
+           (Types[TypeIndex].Block = BlockStack[BlockStackTop]) then begin
+          { Forward type reference resolution }
           Types[TypeIndex] := Types[VarType];
           if Types[VarType].TypeKind = RECORDTYPE then
-            for FieldIndex := 1 to Types[VarType].NumFields do
-              begin
+            for FieldIndex := 1 to Types[VarType].NumFields do begin
               New(Types[TypeIndex].Field[FieldIndex]);
               Types[TypeIndex].Field[FieldIndex]^ := Types[VarType].Field[FieldIndex]^;
               end;
           end;// if    
 
-      EatTok(SEMICOLONTOK);
+                                        EatTok(SEMICOLONTOK);
                                 until Tok.Kind <> IDENTTOK;
-
-    CheckForwardResolutions;
-
-    end;// if TYPETOK
-
-
-  if Tok.Kind = VARTOK then begin
-    NextTok;
-    repeat
-      NumIdentInList := 0;
-      WHILE TRUE DO BEGIN
-        AssertIdent;
-        Inc(NumIdentInList);
-        IdentInListName[NumIdentInList] := Tok.Name;
-        NextTok;
-        if Tok.Kind = COMMATOK then NextTok
-        else BREAK;
-      END;
-
-      EatTok(COLONTOK);
-
-      CompileType(VarType);
-
-      for IdentInListIndex := 1 to NumIdentInList do
-        DeclareId(IdentInListName[IdentInListIndex], VARIABLE, 0, VarType, VALPASSING, 0, 0.0, 0);
-
-      EatTok(SEMICOLONTOK);
-    until Tok.Kind <> IDENTTOK;
-
-    CheckForwardResolutions;
-
-    end;// if VARTOK
-
-
-  if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK] then begin
-    ProcFuncTok := Tok;
-    NextTok;
-
-    AssertIdent;
-
-    // Check for forward declaration resolution
-    ForwardIdent := FindIdentUnsafe(Tok.Name);
+                                CheckForwardResolutions;
+                        end else if Tok.Kind = VARTOK then begin
+                                NextTok;
+                                repeat
+                                        NumIdentInList := 0;
+                                        WHILE TRUE DO BEGIN
+                                                AssertIdent;
+                                                Inc(NumIdentInList);
+                                                IdentInListName[NumIdentInList] := Tok.Name;
+                                                NextTok;
+                                                if Tok.Kind <> COMMATOK then BREAK;
+                                                NextTok;
+                                        END;
+                                        EatTok(COLONTOK);
+                                        CompileType(VarType);
+                                        for IdentInListIndex := 1 to NumIdentInList do
+                                                DeclareId(IdentInListName[IdentInListIndex],
+                                                        VARIABLE, 0, VarType,
+                                                        VALPASSING, 0, 0.0, 0);
+                                        EatTok(SEMICOLONTOK);
+                                until Tok.Kind <> IDENTTOK;
+                                CheckForwardResolutions;
+                        end else if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK] then begin
+                                ProcFuncTok := Tok;
+                                NextTok;
+                                AssertIdent;
+                                { Check for forward declaration resolution }
+                                ForwardIdent := FindIdentUnsafe(Tok.Name);
     if ForwardIdent <> nil then
       if not ForwardIdent^.IsUnresolvedForward or
          (ForwardIdent^.Block <> BlockStack[BlockStackTop]) or
          ((ProcFuncTok.Kind = PROCEDURETOK) and (ForwardIdent^.Kind <> PROC)) or
          ((ProcFuncTok.Kind = FUNCTIONTOK) and (ForwardIdent^.Kind <> FUNC)) then
-       ForwardIdent := nil;                                      // Found an identifier of another kind or scope, or it is already resolved
+       ForwardIdent := nil;  { Found an identifier of another kind or scope, or it is already resolved }
 
-    if ForwardIdent = nil then begin
+                                if ForwardIdent = nil then begin
+                                        if ProcFuncTok.Kind = PROCEDURETOK then
+                                                DeclareId(Tok.Name, PROC,
+                                                        0, 0, VALPASSING,
+                                                        0, 0.0, 0)
+                                        else
+                                                DeclareId(Tok.Name, FUNC,
+                                                        0, 0, VALPASSING,
+                                                        0, 0.0, 0);
+                                        NextTok;
 
-      if ProcFuncTok.Kind = PROCEDURETOK then
-        DeclareId(Tok.Name, PROC, 0, 0, VALPASSING, 0, 0.0, 0)
-      else
-        DeclareId(Tok.Name, FUNC, 0, 0, VALPASSING, 0, 0.0, 0);
-
-      NextTok;
-
-      if Tok.Kind = OPARTOK then begin
-      // Formal parameter list found
+                                        if Tok.Kind = OPARTOK then begin
+                                                { Formal parameter list found }
+                                                NextTok;
+WHILE TRUE DO BEGIN
+        NumIdentInList := 0;
+        ListPassMethod := VALPASSING;
+        if Tok.Kind = CONSTTOK then begin
+                ListPassMethod := CONSTPASSING;
+                NextTok;
+        end else if Tok.Kind = VARTOK then begin
+                ListPassMethod := VARPASSING;
+                NextTok;
+        end;
+        WHILE TRUE DO BEGIN
+                AssertIdent;
+                Inc(NumIdentInList);
+                IdentInListName[NumIdentInList] := Tok.Name;
+                NextTok;
+                if Tok.Kind <> COMMATOK then BREAK;
+                NextTok
+        END;
+        EatTok(COLONTOK);
+        { Only type names are allowed for formal parameters }
+        AssertIdent;
+        PIdent := FindIdent(Tok.Name);
+        if PIdent^.Kind = USERTYPE then
+                VarType := PIdent^.DataType
+        else Error('Type name expected');
         NextTok;
-        repeat
-          NumIdentInList := 0;
-          ListPassMethod := VALPASSING;
-
-          if Tok.Kind = CONSTTOK then begin
-            ListPassMethod := CONSTPASSING;
-            NextTok;
-            end
-          else if Tok.Kind = VARTOK then begin
-            ListPassMethod := VARPASSING;
-            NextTok;
-            end;
-
-          repeat
-            AssertIdent;
-
-            Inc(NumIdentInList);
-            IdentInListName[NumIdentInList] := Tok.Name;
-
-            NextTok;
-
-            ExitLoop := FALSE;
-            if Tok.Kind = COMMATOK then
-              NextTok
-            else
-              ExitLoop := TRUE;
-          until ExitLoop;
-
-          EatTok(COLONTOK);
-
-          // Only type names are allowed for formal parameters
-          AssertIdent;
-          PIdent := FindIdent(Tok.Name);
-          if PIdent^.Kind = USERTYPE then
-            VarType := PIdent^.DataType
-          else
-            Error('Type name expected');
-          NextTok;
 
 
           if (ListPassMethod = VALPASSING) and (Types[VarType].TypeKind in [ARRAYTYPE, RECORDTYPE]) then
             Error('Structured parameters cannot be passed by value');
 
-          for IdentInListIndex := 1 to NumIdentInList do
-            begin
+          for IdentInListIndex := 1 to NumIdentInList do begin
             Inc(LastIdent^.NumParams);
 
             if LastIdent^.NumParams > MAXPARAMS then
@@ -1647,116 +1553,101 @@ begin
             LastIdent^.Param[LastIdent^.NumParams]^.Name       := IdentInListName[IdentInListIndex];
             end;// for
 
-          ExitLoop := FALSE;
-          if Tok.Kind = SEMICOLONTOK then
-            NextTok
-          else
-            ExitLoop := TRUE;
-        until ExitLoop;
+          if Tok.Kind <> SEMICOLONTOK then BREAK;
+          NextTok;
+        END;
 
-        EatTok(CPARTOK);
-        end;// if Tok.Kind = OPARTOR
+                                        EatTok(CPARTOK);
+                                end;// if Tok.Kind = OPARTOR
+                                LastIdent^.DataType := 0;
+                                if ProcFuncTok.Kind = FUNCTIONTOK then begin
+                                        EatTok(COLONTOK);
 
-      LastIdent^.DataType := 0;
+                                        { Only type names are allowed for function results }
+                                        AssertIdent;
+                                        PIdent := FindIdent(Tok.Name);
+                                        if PIdent^.Kind = USERTYPE then
+                                                VarType := PIdent^.DataType
+                                        else Error('Type name expected');
+                                        NextTok;
 
-      if ProcFuncTok.Kind = FUNCTIONTOK then begin
-        EatTok(COLONTOK);
+                                        if Types[VarType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
+                                                Error('Structured result is not allowed');
 
-        // Only type names are allowed for function results
-        AssertIdent;
-        PIdent := FindIdent(Tok.Name);
-        if PIdent^.Kind = USERTYPE then
-          VarType := PIdent^.DataType
-        else
-          Error('Type name expected');
-        NextTok;
+                                        LastIdent^.DataType := VarType;
+                                end;// if IsNestedFunction
+                        end else NextTok;
+                        EatTok(SEMICOLONTOK);
+                        { Check for a FORWARD directive (it is not a reserved word) }
+                        if (ForwardIdent = nil) and (Tok.Kind = IDENTTOK) and (Tok.Name = 'FORWARD') then begin
+                                { Forward declaration }
+                                Inc(NumBlocks);
+                                LastIdent^.ProcAsBlock := NumBlocks;
+                                LastIdent^.IsUnresolvedForward := TRUE;
+                                GenerateForwardReference;
+                                NextTok;
+                        end else begin
+                                if ForwardIdent = nil then begin
+                                        { New declaration }
+                                        Inc(NumBlocks);
+                                        LastIdent^.ProcAsBlock := NumBlocks;
+                                        CompileBlock(LastIdent);
+                                end else begin
+                                        { Forward declaration resolution }
+                                        GenerateForwardResolution(ForwardIdent);
+                                        CompileBlock(ForwardIdent);
+                                        ForwardIdent^.IsUnresolvedForward := FALSE;
+                                end;
+                        end;
+                        EatTok(SEMICOLONTOK);
+                end;// if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK]
 
-        if Types[VarType].TypeKind in [ARRAYTYPE, RECORDTYPE] then
-          Error('Structured result is not allowed');
+        end;// while
 
-        LastIdent^.DataType := VarType;
-        end;// if IsNestedFunction
+        GenerateDeclarationEpilog;  { Make jump to block entry point }
 
-      end// if ForwardIdentIndex = 0
-    else
-      NextTok;
+        if BlockStack[BlockStackTop] <> 1 then GenerateStackFrameProlog(LocalDataSize);
 
-    EatTok(SEMICOLONTOK);
+        CompileCompoundStatement;
 
-    // Check for a FORWARD directive (it is not a reserved word)
-    if (ForwardIdent = nil) and (Tok.Kind = IDENTTOK) and (Tok.Name = 'FORWARD') then  // Forward declaration
-      begin
-      Inc(NumBlocks);
-      LastIdent^.ProcAsBlock := NumBlocks;
-      LastIdent^.IsUnresolvedForward := TRUE;
-      GenerateForwardReference;
-      NextTok;
-      end else begin
-      if ForwardIdent = nil then begin
-        { New declaration }
-        Inc(NumBlocks);
-        LastIdent^.ProcAsBlock := NumBlocks;
-        CompileBlock(LastIdent);
-        end else begin
-        // Forward declaration resolution
-        GenerateForwardResolution(ForwardIdent);
-        CompileBlock(ForwardIdent);
-        ForwardIdent^.IsUnresolvedForward := FALSE;
+        { If function, return Result value via the EDX register }
+        if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then begin
+                PushVarPtr(FindIdent('RESULT')^.Value, LOCAL, 0);
+                DerefPtr(BlockIdent^.DataType);
+                SaveStackTop;
         end;
 
-      end;
+        if BlockStack[BlockStackTop] = 1 then { Main program }
+                GenerateProgramEpilog
+        else begin
+                GenerateStackFrameEpilog;
+                GenerateReturn(BlockIdent^.NumParams * SizeOf(LongInt));
+        end;
 
-    EatTok(SEMICOLONTOK);
-    end;// if Tok.Kind in [PROCEDURETOK, FUNCTIONTOK]
+        { Delete local identifiers and types from the tables to save space }
+        while (LastIdent <> nil) and (LastIdent^.Block = BlockStack[BlockStackTop]) do begin
+                { If procedure or function, delete parameters first }
+                if LastIdent^.Kind in [PROC, FUNC] then begin
+                        if LastIdent^.IsUnresolvedForward then
+                                Error('Unresolved forward declaration of ' + LastIdent^.Name);
 
-  end;// while
+                        for ParamIndex := 1 to LastIdent^.NumParams do
+                                Dispose(LastIdent^.Param[ParamIndex]);
+                end;  
 
-GenerateDeclarationEpilog;  // Make jump to block entry point
-
-if BlockStack[BlockStackTop] <> 1 then
-  GenerateStackFrameProlog(LocalDataSize);
-
-CompileCompoundStatement;
-
-// If function, return Result value via the EDX register
-if (BlockStack[BlockStackTop] <> 1) and (BlockIdent^.Kind = FUNC) then begin
-  PushVarPtr(FindIdent('RESULT')^.Value, LOCAL, 0);
-  DerefPtr(BlockIdent^.DataType);
-  SaveStackTop;
-  end;
-
-if BlockStack[BlockStackTop] = 1 then          // Main program
-  GenerateProgramEpilog
-else begin
-  GenerateStackFrameEpilog;
-  GenerateReturn(BlockIdent^.NumParams * SizeOf(LongInt));
-  end;
-
-// Delete local identifiers and types from the tables to save space
-while (LastIdent <> nil) and (LastIdent^.Block = BlockStack[BlockStackTop]) do begin
-  // If procedure or function, delete parameters first
-  if LastIdent^.Kind in [PROC, FUNC] then begin
-    if LastIdent^.IsUnresolvedForward then
-      Error('Unresolved forward declaration of ' + LastIdent^.Name);
-
-    for ParamIndex := 1 to LastIdent^.NumParams do
-      Dispose(LastIdent^.Param[ParamIndex]);
-    end;  
-
-        // Delete identifier itself
-        KillLastIdent;
+                { Delete identifier itself }
+                KillLastIdent;
         end;
   
         while (NumTypes > 0) and (Types[NumTypes].Block = BlockStack[BlockStackTop]) do begin
-                // If record, delete fields first
+                { If record, delete fields first }
                 if Types[NumTypes].TypeKind = RECORDTYPE then
                         for FieldIndex := 1 to Types[NumTypes].NumFields do
                         Dispose(Types[NumTypes].Field[FieldIndex]);
 
-                // Delete type itself
+                { Delete type itself }
                 Dec(NumTypes);
         end;    
-
         Dec(BlockStackTop);
 end;
 

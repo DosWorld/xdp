@@ -213,14 +213,14 @@ end;
 
 procedure GenXorReg16Reg16(r1, r2 : BYTE);
 begin
-{ 33C0   xor     ax,ax 11000000
-  33C9   xor     cx,cx 11001001
-  33D2   xor     dx,dx 11010010
-  33DB   xor     bx,bx 11011011
-  33E4   xor     sp,sp 11100100
-  33ED   xor     bp,bp 11101101
-  33F6   xor     si,si 11110110
-  33FF   xor     di,di 11111111
+{ 33C0   xor ax,ax 11000000
+  33C9   xor cx,cx 11001001
+  33D2   xor dx,dx 11010010
+  33DB   xor bx,bx 11011011
+  33E4   xor sp,sp 11100100
+  33ED   xor bp,bp 11101101
+  33F6   xor si,si 11110110
+  33FF   xor di,di 11111111
 }
         Gen($33);
         GenOperand(r1, r2);
@@ -228,12 +228,12 @@ end;
 
 procedure GenAddReg16Reg16(r1, r2 : BYTE);
 begin
-{ 03C0 add     ax,ax 11000000
-  03D2 add     dx,dx 11010010
-  03CA add     cx,dx 11001010
-  03D1 add     dx,cx 11010001 }
+{ 03C0 add  ax,ax 11000000
+  03D2 add  dx,dx 11010010
+  03CA add  cx,dx 11001010
+  03D1 add  dx,cx 11010001 }
         Gen($03);
-        GenOperand(r1, r2);
+        GenOperand(r2, r1);
 end;
 
 procedure GenMovReg16Val16(reg : BYTE; canxor : boolean; val : INTEGER);
@@ -286,14 +286,14 @@ end;
 procedure GenMovReg16Param16(reg : BYTE; val : INTEGER);
 begin
 {
-8B863012                 mov     ax,[bp+1230h]
-8B8E3112                 mov     cx,[bp+1231h]
-8B963212                 mov     dx,[bp+1232h]
-8B9E3312                 mov     bx,[bp+1233h]
-8BA63412                 mov     sp,[bp+1234h]
-8BAE3512                 mov     bp,[bp+1235h]
-8BB63612                 mov     si,[bp+1236h]
-8BBE3712                 mov     di,[bp+1237h]
+8B863012   mov     ax,[bp+1230h]
+8B8E3112   mov     cx,[bp+1231h]
+8B963212   mov     dx,[bp+1232h]
+8B9E3312   mov     bx,[bp+1233h]
+8BA63412   mov     sp,[bp+1234h]
+8BAE3512   mov     bp,[bp+1235h]
+8BB63612   mov     si,[bp+1236h]
+8BBE3712   mov     di,[bp+1237h]
 }
 
                 Gen($8B);
@@ -367,9 +367,6 @@ begin
         end;
 end;
 
-
-
-
 procedure DerefPtr(DataType: Byte);
 begin
         GenPop(REG_SI);
@@ -433,40 +430,27 @@ begin
         GenPush(REG_AX);
 end;
 
-
-
-
 procedure SaveStackTop;
 begin
         GenStr(#$66+#$5A); { pop edx }
 end;
-
-
-
 
 procedure RestoreStackTop;
 begin
         GenStr(#$66+#$52); { push edx }
 end;
 
-
-
 procedure SaveFileHandle;
 begin
-GenStr(#$66+#$5F+  { pop edi }
-#$66+#$58+         { pop eax  ; pop and discard unnecessary stream handle, i.e. 0 }
-#$66+#$58);        { pop eax  ; pop and discard unnecessary console handle, i.e. 0 }
+        GenStr(#$66+#$5F+  { pop edi }
+        #$66+#$58+         { pop eax  ; pop and discard unnecessary stream handle, i.e. 0 }
+        #$66+#$58);        { pop eax  ; pop and discard unnecessary console handle, i.e. 0 }
 end;
-
-
-
 
 procedure RestoreFileHandle;
 begin
         GenStr(#$66+#$57); { push edi }
 end;
-
-
 
 procedure GenerateIncDec(proc, Size: Byte);
 begin
@@ -491,9 +475,6 @@ begin
         end;
 end;
 
-
-
-
 procedure GenerateInpOutp(proc: Byte);
 begin
         case proc of
@@ -513,8 +494,6 @@ begin
         end;
 end;
 
-
-
 procedure GenerateNewDispose(proc: Byte; Size: Integer);
 begin
         GenPop(REG_SI);
@@ -528,24 +507,18 @@ begin
                 Gen($66); Gen($26); Gen($89); Gen($04);    { mov es:[si], eax }
         end;
         DISPOSEPROC: begin
-                Gen($B4); Gen($49);                        { mov ah, 49h }
-                Gen($26); Gen($C4); Gen($34);              { les si, es:[si] }
-                Gen($CD); Gen($21);                        { int 21h }
+                Gen($B4); Gen($49);            { mov ah, 49h }
+                Gen($26); Gen($C4); Gen($34);  { les si, es:[si] }
+                Gen($CD); Gen($21);            { int 21h }
         end;
         end;
 end;
-
-
-
 
 procedure GenerateHalt(err: Byte);
 begin
         GenMovReg16Val16(REG_AX, TRUE, $4C00 OR err);
         Gen($CD); Gen($21); { int 21h }
 end;
-
-
-
 
 procedure GenerateInterrupt(IntNumber: Byte);
 begin
@@ -590,28 +563,22 @@ begin
         Gen($8F); Gen($46); Gen($1C); // pop     word ptr es:[bp+1Ch]
         GenPop(REG_BP);
         GenPopSeg(REG_DS);
-end;// GenerateInterrupt
-
-
-
+end;
 
 procedure GenerateRound(TruncMode: Boolean);
 begin
-GenMovReg16Reg16(REG_BX, REG_SP);
-Gen($36); Gen($D9); Gen($07);                                         // fld ss:[bx]   ;  st := operand
-if TruncMode then begin
-  Gen($36); Gen($C7); Gen($87); GenWord(-4); GenWord($0F7F);          // mov ss:[bx - 4], 0F7Fh
-  Gen($36); Gen($D9); Gen($AF); GenWord(-4);                          // fldcw ss:[bx - 4]
+        GenMovReg16Reg16(REG_BX, REG_SP);
+        Gen($36); Gen($D9); Gen($07);       // fld ss:[bx]   ;  st := operand
+        if TruncMode then begin
+                GenStr(#$36+#$C7+#$87); GenWord(-4); GenWord($0F7F); // mov ss:[bx - 4], 0F7Fh
+                GenStr(#$36+#$D9+#$AF); GenWord(-4);                 // fldcw ss:[bx - 4]
+        end;
+        Gen($36); Gen($DB); Gen($1F); // fistp ss:[bx] ;  ss:[bx] := round(result);  pop
+        if TruncMode then begin
+                Gen($36); Gen($C7); Gen($87); GenWord(-4); GenWord($037F); // mov ss:[bx - 4], 037Fh
+                Gen($36); Gen($D9); Gen($AF); GenWord(-4);                 // fldcw ss:[bx - 4]
+        end;
 end;
-Gen($36); Gen($DB); Gen($1F);                                         // fistp ss:[bx] ;  ss:[bx] := round(result);  pop
-if TruncMode then begin
-  Gen($36); Gen($C7); Gen($87); GenWord(-4); GenWord($037F);          // mov ss:[bx - 4], 037Fh
-  Gen($36); Gen($D9); Gen($AF); GenWord(-4);                          // fldcw ss:[bx - 4]
-end;
-end;// GenerateRound
-
-
-
 
 procedure GenerateFloat(Depth: Byte);
 begin
@@ -623,218 +590,156 @@ end;
 
 procedure GenerateMathFunction(func, ResultType: Byte);
 begin
-if Types[ResultType].TypeKind = REALTYPE then begin
-GenMovReg16Reg16(REG_BX, REG_SP);
-  Gen($36); Gen($D9); Gen($07);                                       // fld ss:[bx]  ;  st := x
-  case func of
-    ABSFUNC: begin
-      Gen($D9); Gen($E1);                                             // fabs
-      end;
-    SQRFUNC: begin
-      Gen($DC); Gen($C8);                                             // fmul st, st
-      end;
-    SINFUNC: begin
-      Gen($D9); Gen($FE);                                             // fsin
-      end;
-    COSFUNC: begin
-      Gen($D9); Gen($FF);                                             // fcos
-      end;
-    ARCTANFUNC: begin
-      Gen($D9); Gen($E8);                                             // fld1
-      Gen($D9); Gen($F3);                                             // fpatan    ; st := arctan(x / 1.0)
-      end;
-    EXPFUNC: begin
-      Gen($D9); Gen($EA);                                             // fldl2e
-      Gen($DE); Gen($C9);                                             // fmul
-      Gen($D9); Gen($C0);                                             // fld st
-      Gen($D9); Gen($FC);                                             // frndint
-      Gen($DD); Gen($D2);                                             // fst st(2) ; st(2) := round(x * log2(e))
-      Gen($DE); Gen($E9);                                             // fsub
-      Gen($D9); Gen($F0);                                             // f2xm1     ; st := 2 ^ frac(x * log2(e)) - 1
-      Gen($D9); Gen($E8);                                             // fld1
-      Gen($DE); Gen($C1);                                             // fadd
-      Gen($D9); Gen($FD);                                             // fscale    ; st := 2 ^ frac(x * log2(e)) * 2 ^ round(x * log2(e)) = exp(x)
-      end;
-    LNFUNC: begin
-      Gen($D9); Gen($ED);                                             // fldln2
-      Gen($D9); Gen($C9);                                             // fxch
-      Gen($D9); Gen($F1);                                             // fyl2x     ; st := ln(2) * log2(x) = ln(x)
-      end;
-    SQRTFUNC: begin
-      Gen($D9); Gen($FA);                                             // fsqrt
-      end;
-
-  end;// case
-
-  Gen($36); Gen($D9); Gen($1F);                                       // fstp ss:[bx] ;  ss:[bx] := result;  pop
-  end
-else                                // Ordinal types
-  case func of
-    ABSFUNC: begin
-      Gen($66); Gen($58);                                             // pop eax
-      Gen($66); Gen($83); Gen($F8); Gen($00);                         // cmp eax, 0
-      Gen($7D); Gen($03);                                             // jge +3
-      Gen($66); Gen($F7); Gen($D8);                                   // neg eax
-      Gen($66); Gen($50);                                             // push eax
-      end;
-    SQRFUNC: begin
-      Gen($66); Gen($58);                                             // pop eax
-      Gen($66); Gen($F7); Gen($E8);                                   // imul eax
-      Gen($66); Gen($50);                                             // push eax
-      end;
-  end;// case
-end;// GenerateMathFunction
-
-
-
-
+        if Types[ResultType].TypeKind = REALTYPE then begin
+                GenMovReg16Reg16(REG_BX, REG_SP);
+                Gen($36); Gen($D9); Gen($07);  { fld ss:[bx]  ;  st := x }
+                case func of
+                ABSFUNC: GenStr(#$D9+#$E1);  { fabs }
+                SQRFUNC: GenStr(#$DC+#$C8);  { fmul st, st }
+                SINFUNC: GenStr(#$D9+#$FE);  { fsin }
+                COSFUNC: GenStr(#$D9+#$FF);  { fcos }
+                ARCTANFUNC: begin
+                        GenStr(#$D9+#$E8);         { fld1 }
+                        GenStr(#$D9+#$F3);         { fpatan    ; st := arctan(x / 1.0) }
+                end;
+                EXPFUNC: begin
+                        Gen($D9); Gen($EA);    // fldl2e
+                        Gen($DE); Gen($C9);    // fmul
+                        Gen($D9); Gen($C0);    // fld st
+                        Gen($D9); Gen($FC);    // frndint
+                        Gen($DD); Gen($D2);    // fst st(2) ; st(2) := round(x * log2(e))
+                        Gen($DE); Gen($E9);    // fsub
+                        Gen($D9); Gen($F0);    // f2xm1     ; st := 2 ^ frac(x * log2(e)) - 1
+                        Gen($D9); Gen($E8);    // fld1
+                        Gen($DE); Gen($C1);    // fadd
+                        Gen($D9); Gen($FD);    // fscale    ; st := 2 ^ frac(x * log2(e)) * 2 ^ round(x * log2(e)) = exp(x)
+                end;
+                LNFUNC: begin
+                        Gen($D9); Gen($ED);  // fldln2
+                        Gen($D9); Gen($C9);  // fxch
+                        Gen($D9); Gen($F1);  // fyl2x     ; st := ln(2) * log2(x) = ln(x)
+                end;
+                SQRTFUNC: GenStr(#$D9+#$FA);  // fsqrt
+                end;
+                Gen($36); Gen($D9); Gen($1F); // fstp ss:[bx] ;  ss:[bx] := result;  pop
+        end else case func of
+                ABSFUNC: begin
+                        Gen($66); Gen($58);                      // pop eax
+                        Gen($66); Gen($83); Gen($F8); Gen($00);  // cmp eax, 0
+                        Gen($7D); Gen($03);                      // jge +3
+                        Gen($66); Gen($F7); Gen($D8);            // neg eax
+                        Gen($66); Gen($50);                      // push eax
+                end;
+                SQRFUNC: begin
+                        Gen($66); Gen($58);            // pop eax
+                        Gen($66); Gen($F7); Gen($E8);  // imul eax
+                        Gen($66); Gen($50);            // push eax
+                end;
+                end;
+end;
 
 procedure GenerateUnaryOperator(op: Byte; ResultType: Byte);
 begin
-if Types[ResultType].TypeKind = REALTYPE then begin
-  if op = MINUSTOK then begin
-    GenMovReg16Reg16(REG_BX, REG_SP);
-    Gen($36); Gen($D9); Gen($07);                                       // fld ss:[bx]  ;  st := operand
-    Gen($D9); Gen($E0);                                                 // fchs
-    Gen($36); Gen($D9); Gen($1F);                                       // fstp ss:[bx] ;  ss:[bx] := result;  pop
-    end;
-end else begin
-// Ordinal types
-  Gen($66); Gen($58);                                                   // pop eax
-  case op of
-    MINUSTOK: begin
-      Gen($66); Gen($F7); Gen($D8);                                     // neg eax
-      end;
-    NOTTOK: begin
-      Gen($66); Gen($F7); Gen($D0);                                     // not eax
-      end;
-  end;// case
-  Gen($66); Gen($50);                                                   // push eax
-  end;// else
-  
+        if Types[ResultType].TypeKind = REALTYPE then begin
+                if op = MINUSTOK then begin
+                        GenMovReg16Reg16(REG_BX, REG_SP);
+                        Gen($36); Gen($D9); Gen($07);  { fld ss:[bx]  ;  st := operand }
+                        Gen($D9); Gen($E0);            { fchs }
+                        Gen($36); Gen($D9); Gen($1F);  { fstp ss:[bx] ;  ss:[bx] := result;  pop }
+                end;
+        end else begin
+                Gen($66); Gen($58); { pop eax }
+                case op of
+                MINUSTOK: GenStr(#$66+#$F7+#$D8); { neg eax }
+                NOTTOK: GenStr(#$66+#$F7+#$D0); { not eax }
+                end;
+                Gen($66); Gen($50); { push eax }
+        end;
 end;
-
-
-
 
 procedure GenerateBinaryOperator(op: Byte; ResultType: Byte);
 begin
-if Types[ResultType].TypeKind = REALTYPE then begin
-  GenMovReg16Reg16(REG_BX, REG_SP);
-  Gen($36); Gen($D9); Gen($07);                                         // fld ss:[bx]  ;  st := operand2
-  Gen($66); Gen($58);                                                   // pop eax
-  Gen($8B); Gen($DC);                                                   // mov bx, sp
-  Gen($36); Gen($D9); Gen($07);                                         // fld ss:[bx]  ;  st(1) := operand2;  st := operand1
-  Gen($D9); Gen($C9);                                                   // fxch         ;  st := operand2;  st(1) := operand1
+        if Types[ResultType].TypeKind = REALTYPE then begin
+                GenMovReg16Reg16(REG_BX, REG_SP);
+                Gen($36); Gen($D9); Gen($07);  { fld ss:[bx]  ;  st := operand2 }
+                Gen($66); Gen($58);            { pop eax }
+                Gen($8B); Gen($DC);            { mov bx, sp }
+                Gen($36); Gen($D9); Gen($07);  { fld ss:[bx]  ;  st(1) := operand2;  st := operand1 }
+                Gen($D9); Gen($C9);            { fxch         ;  st := operand2;  st(1) := operand1 }
 
-  case op of
-    PLUSTOK: begin
-      GenStr(#$DE+#$C1);                                               // fadd  ;  st(1) := st(1) + st;  pop
-      end;
-    MINUSTOK: begin
-      GenStr(#$DE+#$E9);                                               // fsub  ;  st(1) := st(1) - st;  pop
-      end;
-    MULTOK: begin
-      GenStr(#$DE+#$C9);                                               // fmul  ;  st(1) := st(1) * st;  pop
-      end;
-    DIVTOK: begin
-      GenStr(#$DE+#$F9);                                               // fdiv  ;  st(1) := st(1) / st;  pop
-      end;
-  end;// case
+                case op of
+                PLUSTOK: GenStr(#$DE+#$C1);    { fadd  ;  st(1) := st(1) + st;  pop }
+                MINUSTOK: GenStr(#$DE+#$E9);   { fsub  ;  st(1) := st(1) - st;  pop }
+                MULTOK: GenStr(#$DE+#$C9);     { fmul  ;  st(1) := st(1) * st;  pop }
+                DIVTOK: GenStr(#$DE+#$F9);     { fdiv  ;  st(1) := st(1) / st;  pop }
+                end;
 
-  GenStr(#$36+#$D9+#$1F);                                         // fstp ss:[bx]  ;  ss:[bx] := result;  pop
+                GenStr(#$36+#$D9+#$1F);        { fstp ss:[bx]  ;  ss:[bx] := result;  pop }
 
-  end else begin
-  Gen($66); Gen($59);                                                   // pop ecx
-  Gen($66); Gen($58);                                                   // pop eax
+        end else begin
+                Gen($66); Gen($59); { pop ecx }
+                Gen($66); Gen($58); { pop eax }
 
-  case op of
-    PLUSTOK: begin
-      Gen($66); Gen($03); Gen($C1);                                     // add eax, ecx
-      end;
-    MINUSTOK: begin
-      Gen($66); Gen($2B); Gen($C1);                                     // sub eax, ecx
-      end;
-    MULTOK: begin
-      Gen($66); Gen($F7); Gen($E9);                                     // imul ecx
-      end;
-    IDIVTOK, MODTOK: begin
-      Gen($66); Gen($99);                                               // cdq
-      Gen($66); Gen($F7); Gen($F9);                                     // idiv ecx
-      if op = MODTOK then begin
-        Gen($66); Gen($8B); Gen($C2);                                   // mov eax, edx         ; save remainder
+                case op of
+                PLUSTOK: GenStr(#$66+#$03+#$C1);    // add eax, ecx
+                MINUSTOK: GenStr(#$66+#$2B+#$C1);   // sub eax, ecx
+                MULTOK: GenStr(#$66+#$F7+#$E9);     // imul ecx
+                IDIVTOK, MODTOK: begin
+                        Gen($66); Gen($99);             // cdq
+                        GenStr(#$66+#$F7+#$F9);         // idiv ecx
+                        if op = MODTOK then GenStr(#$66+#$8B+#$C2);   // mov eax, edx  ; save remainder
+                end;
+                SHLTOK: GenStr(#$66+#$D3+#$E0);     // shl eax, cl
+                SHRTOK: GenStr(#$66+#$D3+#$E8);     // shr eax, cl
+                ANDTOK: GenStr(#$66+#$23+#$C1);     // and eax, ecx
+                ORTOK:  GenStr(#$66+#$0B+#$C1);     // or eax, ecx
+                XORTOK: GenStr(#$66+#$33+#$C1);     // xor eax, ecx
+                end;
+
+                Gen($66); Gen($50);  { push eax }
         end;
-      end;
-    SHLTOK: begin
-      Gen($66); Gen($D3); Gen($E0);                                     // shl eax, cl
-      end;
-    SHRTOK: begin
-      Gen($66); Gen($D3); Gen($E8);                                     // shr eax, cl
-      end;
-    ANDTOK: begin
-      Gen($66); Gen($23); Gen($C1);                                     // and eax, ecx
-      end;
-    ORTOK: begin
-      Gen($66); Gen($0B); Gen($C1);                                     // or eax, ecx
-      end;
-    XORTOK: begin
-      Gen($66); Gen($33); Gen($C1);                                     // xor eax, ecx
-      end;
-
-  end;// case
-
-  Gen($66); Gen($50);                                                   // push eax
-  end;// else
 end;
-
-
-
 
 procedure GenerateRelation(rel: Byte; ValType: Byte);
 begin
-if Types[ValType].TypeKind = REALTYPE then begin
-  GenMovReg16Reg16(REG_BX, REG_SP);
-  Gen($36); Gen($D9); Gen($07);                                         // fld ss:[bx]    ;  st := operand2
-  Gen($66); Gen($58);                                                   // pop eax
-  GenMovReg16Reg16(REG_BX, REG_SP);
-  Gen($36); Gen($D9); Gen($07);                                         // fld ss:[bx]    ;  st(1) := operand2;  st := operand1
-  Gen($66); Gen($58);                                                   // pop eax
-  GenMovReg16Reg16(REG_BX, REG_SP);
-  Gen($DE); Gen($D9);                                                   // fcompp         ;  test st - st(1)
-  Gen($DF); Gen($E0);                                                   // fstsw ax
-  Gen($66); Gen($68); GenDWord(-1);                                     // push FFFFFFFFh ;  TRUE
-  Gen($9E);                                                             // sahf
-  case rel of
-    EQTOK: Gen($74);                                                    // je  ...
-    NETOK: Gen($75);                                                    // jne ...
-    GTTOK: Gen($77);                                                    // ja  ...
-    GETOK: Gen($73);                                                    // jae ...
-    LTTOK: Gen($72);                                                    // jb  ...
-    LETOK: Gen($76);                                                    // jbe ...
-  end;// case
-  end else begin
-  Gen($66); Gen($59);                                                   // pop ecx
-  Gen($66); Gen($58);                                                   // pop eax
-  PushConstLong(-1);
-  Gen($66); Gen($3B); Gen($C1);                                         // cmp eax, ecx
-  case rel of
-    EQTOK: Gen($74);                                                    // je  ...
-    NETOK: Gen($75);                                                    // jne ...
-    GTTOK: Gen($7F);                                                    // jg  ...
-    GETOK: Gen($7D);                                                    // jge ...
-    LTTOK: Gen($7C);                                                    // jl  ...
-    LETOK: Gen($7E);                                                    // jle ...
-  end;// case
-  end;// else
-
-Gen($08);                                                               // ... +8
-Gen($66); Gen($59);                                                     // pop ecx
-PushConstLong(0);
+        if Types[ValType].TypeKind = REALTYPE then begin
+                GenMovReg16Reg16(REG_BX, REG_SP);
+                Gen($36); Gen($D9); Gen($07);      // fld ss:[bx]    ;  st := operand2
+                Gen($66); Gen($58);                // pop eax
+                GenMovReg16Reg16(REG_BX, REG_SP);
+                Gen($36); Gen($D9); Gen($07);      // fld ss:[bx]    ;  st(1) := operand2;  st := operand1
+                Gen($66); Gen($58);                // pop eax
+                GenMovReg16Reg16(REG_BX, REG_SP);
+                Gen($DE); Gen($D9);                // fcompp         ;  test st - st(1)
+                Gen($DF); Gen($E0);                // fstsw ax
+                Gen($66); Gen($68); GenDWord(-1);  // push FFFFFFFFh ;  TRUE
+                Gen($9E);                          // sahf
+                case rel of
+                EQTOK: Gen($74);  // je  ...
+                NETOK: Gen($75);  // jne ...
+                GTTOK: Gen($77);  // ja  ...
+                GETOK: Gen($73);  // jae ...
+                LTTOK: Gen($72);  // jb  ...
+                LETOK: Gen($76);  // jbe ...
+                end;
+        end else begin
+                Gen($66); Gen($59);   // pop ecx
+                Gen($66); Gen($58);   // pop eax
+                PushConstLong(-1);
+                Gen($66); Gen($3B); Gen($C1);  { cmp eax, ecx }
+                case rel of
+                EQTOK: Gen($74);  // je  ...
+                NETOK: Gen($75);  // jne ...
+                GTTOK: Gen($7F);  // jg  ...
+                GETOK: Gen($7D);  // jge ...
+                LTTOK: Gen($7C);  // jl  ...
+                LETOK: Gen($7E);  // jle ...
+                end;
+        end;
+        Gen($08);             // ... +8
+        Gen($66); Gen($59);   // pop ecx
+        PushConstLong(0);
 end;
-
-
-
-
 
 procedure GenerateAssignment(DesignatorType: Byte);
 begin
@@ -849,9 +754,6 @@ begin
         else Error('Internal fault: Illegal designator size');
         end;
 end;
-
-
-
 
 procedure GenerateStructuredAssignment(DesignatorType: Byte);
 begin
@@ -900,21 +802,16 @@ end;
 
 procedure GenerateReturn(TotalParamsSize: Integer);
 begin
-        Gen($C2); GenWord(TotalParamsSize + SizeOf(LongInt)); { ret TotalParamsSize + 4   ; + 4 is for static link }
+        Gen($C2); GenWord(TotalParamsSize + SizeOf(LongInt));
+        { ret TotalParamsSize + 4   ; + 4 is for static link }
 end;
-
-
-
 
 procedure GenerateIfCondition;
 begin
-Gen($66); Gen($58);                                         // pop eax
-Gen($66); Gen($83); Gen($F8); Gen($00);                     // cmp eax, 0
-Gen($75); Gen($03);                                         // jne +3
+        Gen($66); Gen($58);                          // pop eax
+        Gen($66); Gen($83); Gen($F8); Gen($00);      // cmp eax, 0
+        Gen($75); Gen($03);                          // jne +3
 end;
-
-
-
 
 procedure GenerateWhileCondition;
 begin
@@ -926,55 +823,34 @@ begin
         GenerateIfCondition;
 end;
 
-
-
-
 procedure GenerateForCondition(CounterAddress: Integer; Scope, CounterSize: Byte; Down: Boolean);
 begin
-Gen($66); Gen($59);                                         // pop ecx
-Gen($66); Gen($51);                                         // push ecx             ; The final value of the counter will be removed from stack by GenerateForEpilog  
-case Scope of
-  GLOBAL: case CounterSize of
-      1: begin
-         Gen($A0);                                          // mov al, [...]
-         end;
-      2: begin
-         Gen($A1);                                          // mov ax, [...]
-         end;
-      4: begin
-         Gen($66); Gen($A1);                                // mov eax, [...]
-         end;
-      end;
-  LOCAL: case CounterSize of
-      1: begin
-         Gen($8A); Gen($86);                                // mov al, [bp + ...]
-         end;
-      2: begin
-         Gen($8B); Gen($86);                                // mov ax, [bp + ...]
-         end;
-      4: begin
-         Gen($66); Gen($8B); Gen($86);                      // mov eax, [bp + ...]
-         end;
-      end;
-    end;
+        { pop ecx }
+        Gen($66); Gen($59);
+        { push ecx  ; The final value of the counter will be removed from stack by GenerateForEpilog }  
+        Gen($66); Gen($51);
+        case Scope of
+        GLOBAL: case CounterSize of
+                1: Gen($A0);                  // mov al, [...]
+                2: Gen($A1);                  // mov ax, [...]
+                4: GenStr(#$66+#$A1);         // mov eax, [...]
+                end;
+        LOCAL: case CounterSize of
+                1: GenStr(#$8A+#$86);        { mov al, [bp + ...] }
+                2: GenStr(#$8B+#$86);        { mov ax, [bp + ...] }
+                4: GenStr(#$66+#$8B+#$86);   { mov eax, [bp + ...] }
+        end;
+        end;
     
-GenWord(CounterAddress);   { ... CounterAddress ... }
+        GenWord(CounterAddress);   { ... CounterAddress ... }
 
-if CounterSize < 2 then Gen(OP_CBW);
-if CounterSize < 4 then begin
-  Gen($66); Gen($98);                                       // cwde
-  end;
+        if CounterSize < 2 then Gen(OP_CBW);
+        if CounterSize < 4 then GenStr(#$66+#$98);  { cwde }
 
-Gen($66); Gen($3B); Gen($C1);                               // cmp eax, ecx
-if Down then begin
-  Gen($7D); Gen($03);                                       // jge +3
-end else begin
-  Gen($7E); Gen($03);                                       // jle +3
-  end;
+        GenStr(#$66+#$3B+#$C1);          { cmp eax, ecx }
+        if Down then GenStr(#$7D+#$03)   { jge +3 }
+        else GenStr(#$7E+#$03);          { jle +3 }
 end;
-
-
-
 
 procedure GenerateIfProlog;
 begin
@@ -984,7 +860,7 @@ begin
 end;
 
 procedure GenerateElseProlog;
-var     CodePos: Integer;
+var     CodePos: LongInt;
 begin
         CodePos := CodePosStack[CodePosStackTop];
         Dec(CodePosStackTop);
@@ -993,24 +869,19 @@ begin
 end;
 
 procedure GenerateIfElseEpilog;
-var     CodePos: Integer;
+var     CodePos: LongInt;
 begin
         CodePos := CodePosStack[CodePosStackTop];
         Dec(CodePosStackTop);
-        GenAt(CodePos, OP_JMP); GenWordAt(CodePos + 1, CodeSize - (CodePos + 3)); { jmp (IF..THEN block end) }
+        GenAt(CodePos, OP_JMP);
+        GenWordAt(CodePos + 1, CodeSize - (CodePos + 3)); { jmp (IF..THEN block end) }
 end;
-
-
-
 
 procedure GenerateCaseProlog;
 begin
-Gen($66); Gen($59);                                         // pop ecx           ; CASE switch value
-Gen($B0); Gen($00);                                         // mov al, 00h       ; initial flag mask
+        Gen($66); Gen($59);  { pop ecx           ; CASE switch value }
+        Gen($B0); Gen($00);  { mov al, 00h       ; initial flag mask }
 end;
-
-
-
 
 procedure GenerateCaseEpilog(NumCaseStatements: Integer);
 var     i: Integer;
@@ -1018,41 +889,28 @@ begin
         for i := 1 to NumCaseStatements do GenerateIfElseEpilog;
 end;
 
-
-
-
 procedure GenerateCaseEqualityCheck(Value: LongInt);
 begin
-Gen($66); Gen($81); Gen($F9); GenDWord(Value);              // cmp ecx, Value
-Gen($9F);                                                   // lahf
-Gen($0A); Gen($C4);                                         // or al, ah
+        Gen($66); Gen($81); Gen($F9); GenDWord(Value); { cmp ecx, Value }
+        Gen($9F);                                      { lahf }
+        Gen($0A); Gen($C4);                            { or al, ah }
 end;
-
-
-
-
 
 procedure GenerateCaseRangeCheck(Value1, Value2: LongInt);
 begin
-Gen($66); Gen($81); Gen($F9); GenDWord(Value1);             // cmp ecx, Value1
-Gen($7C); Gen($0B);                                         // jl +11
-Gen($66); Gen($81); Gen($F9); GenDWord(Value2);             // cmp ecx, Value2
-Gen($7F); Gen($02);                                         // jg +2
-Gen($0C); Gen($40);                                         // or al, 40h     ; set zero flag on success
+        Gen($66); Gen($81); Gen($F9); GenDWord(Value1);  { cmp ecx, Value1 }
+        Gen($7C); Gen($0B);                              { jl +11 }
+        Gen($66); Gen($81); Gen($F9); GenDWord(Value2);  { cmp ecx, Value2 }
+        Gen($7F); Gen($02);                              { jg +2 }
+        Gen($0C); Gen($40);                              { or al, 40h     ; set zero flag on success }
 end;
-
-
-
 
 procedure GenerateCaseStatementProlog;
 begin
-Gen($24); Gen($40);                                         // and al, 40h    ; test zero flag
-Gen($75); Gen($03);                                         // jnz +3         ; if set, jump to the case statement
-GenerateIfProlog;
+        Gen($24); Gen($40);    { and al, 40h    ; test zero flag }
+        Gen($75); Gen($03);    { jnz +3         ; if set, jump to the case statement }
+        GenerateIfProlog;
 end;
-
-
-
 
 procedure GenerateCaseStatementEpilog;
 var     StoredCodeSize: LongInt;
@@ -1113,58 +971,43 @@ begin
         GenPush(REG_AX);
         GenPopSeg(REG_DS);
         GenPopSeg(REG_ES);
-        ExeRelocs[ExeHeader.relocs_count].seg := 0;
-        ExeRelocs[ExeHeader.relocs_count].ofs := 1;
-        Inc(ExeHeader.relocs_count);
         GenStr(OP_FINIT);
+        Gen(OP_CLD);
 end;
 
 procedure GenerateProgramEpilog;
-var     CodeSegmentSize: Integer;
+var     CodeSegmentSize: WORD;
 begin
         GenerateHalt(0);
-        while (CodeSize and $0f) <> 0 do Gen(OP_NOP);
 
-        CodeSegmentSize := CodeSize shr 4; // in paragraphs
+        ExeRelocs[WriteExeRelocsCount].seg := 0;
+        ExeRelocs[WriteExeRelocsCount].ofs := 1;
+        Inc(WriteExeRelocsCount);
 
-        GenAt(1, CodeSegmentSize and $ff);
-        GenAt(2, (CodeSegmentSize shr 8) and $ff);
-
-        while (NumStaticStrChars and $0f) <> 0 do begin
+        WHILE (CodeSize AND $0F) <> 0 DO Gen(OP_NOP);
+        WHILE (NumStaticStrChars AND $0F) <> 0 DO BEGIN
                 StaticStringData[NumStaticStrChars] := #0;
                 Inc(NumStaticStrChars);
-        end;
-        ExeHeader.ss := CodeSegmentSize + $1000;
-        WriteExeRlocsCount := ExeHeader.relocs_count;
-        while (SizeOf(MZ_HEADER) + SizeOf(MZ_RELOC) * WriteExeRlocsCount) and $0f <> 0 do begin
-                ExeRelocs[WriteExeRlocsCount].seg := 0;
-                ExeRelocs[WriteExeRlocsCount].ofs := 0;
-                Inc(WriteExeRlocsCount);
-        end;
-        ExeHeader.header_par := (SizeOf(MZ_HEADER) + SizeOf(MZ_RELOC) * WriteExeRlocsCount) shr 4;
-        ExeHeader.blk_count := ((CodeSize + NumStaticStrChars) SHR 9) + 1;
-        ExeHeader.lblk_size := ((CodeSize + NumStaticStrChars) AND $1FF);
-        ExeHeader.relocs_ofs := SizeOf(MZ_HEADER);
-        ExeHeader.min_ext_par := $2000 - (NumStaticStrChars shr 4);
-        ExeHeader.max_ext_par := ExeHeader.min_ext_par;
+        END;
+
+        CodeSegmentSize := CodeSize shr 4;
+        GenAt(1, CodeSegmentSize and $ff);
+        GenAt(2, (CodeSegmentSize shr 8) and $ff);
 end;
-
-
-
 
 procedure GenerateStackFrameProlog(TotalLocalVarsSize: Integer);
 begin
-{ // push ebp
-  // mov ebp, esp
-  // sub esp, TotalLocalVarsSize }
+{ push ebp
+  mov ebp, esp
+  sub esp, TotalLocalVarsSize }
         GenStr(#$66+#$55+#$66+#$8B+#$EC+#$66+#$81+#$EC);
         GenDWord(TotalLocalVarsSize);
 end;
 
 procedure GenerateStackFrameEpilog;
 begin
-{ // mov esp, ebp
-  // pop ebp }
+{ mov esp, ebp
+  pop ebp }
         GenStr(#$66+#$8B+#$E5+#$66+#$5D);
 end;
 
@@ -1177,8 +1020,8 @@ begin
 end;
 
 procedure GenerateForwardResolution(PIdent: PIdentifier);
-var
-  CodePos: Integer;
+var 
+        CodePos: Integer;
 begin
         { jmp Ident[IdentIndex].Value }
         CodePos := PIdent^.Value;
