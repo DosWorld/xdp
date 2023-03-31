@@ -31,6 +31,8 @@ IMPLEMENTATION
 
 USES xdglob, xdutils;
 
+CONST MZ_SIGN = $5A4D;
+
 TYPE
 {$PACKRECORDS 1}
 MZ_HEADER = RECORD
@@ -59,17 +61,14 @@ BEGIN
         BlockWrite(f, buf, count and $0F);
 END;
 
-PROCEDURE Link(pname : TString);
-VAR     ExeName   : TString;
-        OutFile   : File;
+PROCEDURE LinkMZ(ExeName : TString);
+VAR     OutFile   : File;
         ExeHeader : MZ_HEADER;
         headerSize: LONGINT;
         textSize  : LONGINT;
         dataSize  : LONGINT;
         imageSize : LONGINT;
 BEGIN
-        ChangeExt(pname, 'exe', ExeName);
-
         Assign(OutFile, ExeName);
         Rewrite(OutFile, 1);
         IF IOResult <> 0 THEN Error('Could not write ' + ExeName);
@@ -104,6 +103,20 @@ BEGIN
         Seek(OutFile, 0);
         BlockWrite(OutFile, ExeHeader, SizeOf(MZ_HEADER));
         Close(OutFile);
+END;
+
+PROCEDURE Link(pname : TString);
+VAR     ExeName   : TString;
+BEGIN
+        CASE TARGET OF
+        TARGET_86, TARGET_386: ChangeExt(pname, '.exe', ExeName);
+        ELSE ChangeExt(pname, '', ExeName);
+        END;
+
+        CASE TARGET OF
+        TARGET_86:  LinkMZ(ExeName);
+        TARGET_386: LinkMZ(ExeName);
+        END;
 END;
 
 END.

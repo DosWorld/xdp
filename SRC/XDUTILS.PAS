@@ -79,7 +79,7 @@ begin
         DotPos := 0;
         
         while (i > 0) and (DotPos = 0) do begin
-                if InStr[i] = '.' then DotPos := i;
+                if InStr[i] = '.' then DotPos := i - 1;
                 Dec(i);
         end;
         
@@ -170,28 +170,15 @@ end;
 
 
 procedure DefineStaticString(var Tok: TToken; const StrValue: TString);
-var
-  i: Integer;
 begin
-Tok.StrAddress := NumStaticStrChars;
-Tok.StrLength := Length(StrValue);
-
-for i := 1 to Length(StrValue) do
-  begin
-  StaticStringData[NumStaticStrChars] := StrValue[i];
-  Inc(NumStaticStrChars);
-  if NumStaticStrChars > MAXSTATICSTRDATASIZE - 1 then
-    Error('Maximum string data size exceeded');
-  end;
-
-// Add string termination character
-StaticStringData[NumStaticStrChars] := #0;
-Inc(NumStaticStrChars);
+        Tok.StrAddress := NumStaticStrChars;
+        Tok.StrLength := Length(StrValue);
+        IF NumStaticStrChars + Tok.StrLength + 1 > MAXSTATICSTRDATASIZE - 1 THEN Error('Maximum string data size exceeded');
+        Move(StrValue[1], StaticStringData[NumStaticStrChars], Tok.StrLength);
+        Inc(NumStaticStrChars, Tok.StrLength);
+        StaticStringData[NumStaticStrChars] := #0;
+        Inc(NumStaticStrChars);
 end;
-
-
-
-
 
 function LowBound(DataType: Byte): Integer;
 begin
@@ -330,8 +317,8 @@ end;
 
 procedure AddCallGraphChild(ParentBlock, ChildBlock: Integer);
 begin
-// Set bit at ParentBlock row, ChildBlock column
-CallGraph[ParentBlock, ChildBlock div 8] := CallGraph[ParentBlock, ChildBlock div 8] or (1 shl (ChildBlock mod 8));
+        { Set bit at ParentBlock row, ChildBlock column }
+        CallGraph[ParentBlock, ChildBlock div 8] := CallGraph[ParentBlock, ChildBlock div 8] or (1 shl (ChildBlock mod 8));
 end;
 
 end.

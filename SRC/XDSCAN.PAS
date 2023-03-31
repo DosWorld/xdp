@@ -46,6 +46,7 @@ procedure EnterIncludedFile(const Name: TString);
 procedure NextTok;
 procedure CheckTok(ExpectedTokKind: Byte);
 procedure EatTok(ExpectedTokKind: Byte);
+FUNCTION IsTok(ExpectedTokKind: Byte) : BOOLEAN;
 procedure DestroyScanner;
 
 IMPLEMENTATION
@@ -120,7 +121,7 @@ begin
                 Close(InFile);
                 LeaveIncludedFile(ch);
         end else Read(InFile, ch);
-        if ch = #10 then Inc(Line); // End of line found
+        if ch = #10 then Inc(Line); { End of line found }
 end;
 
 procedure ReadValidChar(var ch: Char);
@@ -391,6 +392,14 @@ begin
                 Error(GetSpelling(ExpectedTok) + ' expected but ' + GetSpelling(Tok) + ' found');
         end;
 end;
+
+FUNCTION IsTok(ExpectedTokKind: Byte) : BOOLEAN;
+BEGIN
+        if Tok.Kind = ExpectedTokKind then begin
+                NextTok;
+                IsTok := TRUE;
+        end else IsTok := FALSE;
+END;
 
 procedure EatTok(ExpectedTokKind: Byte);
 begin

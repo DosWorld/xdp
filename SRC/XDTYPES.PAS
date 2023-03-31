@@ -170,17 +170,17 @@ SQRTFUNC              = 29;
 
 MAXSTRLENGTH          = 80;
 MAXSTDTOKENLENGTH     = 9;
-MAXNAMELENGTH         = 32;
-MAXIDENTS             = 1000;
-MAXTYPES              = 1000;
-MAXBLOCKS             = 128;    { Must be a multiple of 8 }
+MAXNAMELENGTH         = 16;
+{MAXIDENTS             = 1000;}
+MAXTYPES              = 512;
+MAXBLOCKS             = 64;    { Must be a multiple of 8 }
 MAXNESTING            = 10;
-MAXPARAMS             = 20;
+MAXPARAMS             = 32;
 MAXUNITNESTING        = 5;
-MAXFIELDS             = 100;
+MAXFIELDS             = 128;
 
 SEGMENTSIZE           = $10000;
-MAXSTATICSTRDATASIZE  = $F000;
+MAXSTATICSTRDATASIZE  = $FF00;
 
 { Compilation pass codes }
 
@@ -198,74 +198,73 @@ VALPASSING            = 1;
 CONSTPASSING          = 2;
 VARPASSING            = 3;
 
-CONST MZ_SIGN = $5A4D;
+SYSTEM_PAS            = '_system.pas';
 
 TYPE
 
-TString  = string [MAXSTRLENGTH];
-TKeyName = string [MAXSTDTOKENLENGTH];
-TName    = string [MAXNAMELENGTH];
+TString  = STRING[MAXSTRLENGTH];
+TKeyName = STRING[MAXSTDTOKENLENGTH];
+TName    = STRING[MAXNAMELENGTH];
 
-TUnit = record
+PUnit = ^TUnit;
+TUnit = RECORD
         FileName  : TString;
         Pos, Line : LongInt;
-end;  
-  
-TParam = record
+END;
+
+PParam = ^TParam;
+TParam = RECORD
         Name       : TName;
         DataType   : Byte;
         PassMethod : Byte;
-end;
+END;
 
-PParam = ^TParam;
-
-TField = record
+PField = ^TField;
+TField = RECORD
         Name     : TName;
         DataType : Byte;
         Offset   : Integer;
-end;
+END;
 
-TType = record
-        Block: Byte;
-        case TypeKind: Byte of
-        SUBRANGETYPE:
-                (HostType: Byte;
-                Low, High: Integer);
-        POINTERTYPE, ARRAYTYPE:
-                (BaseType, IndexType: Byte);
-        RECORDTYPE:
-                (NumFields: Integer;
-                Field: array [1..MAXFIELDS] of ^TField);
-        FORWARDTYPE:
-                (TypeIdentName: TName);   
-end;
+PType = ^TType;
+TType = RECORD
+        Block: BYTE;
+        CASE TypeKind: BYTE OF
+        SUBRANGETYPE: (HostType: BYTE;
+                        Low, High: INTEGER);
+        POINTERTYPE, ARRAYTYPE: (BaseType, IndexType: BYTE);
+        RECORDTYPE:   (NumFields: Integer;
+                        Field: array [1..MAXFIELDS] of ^TField);
+        FORWARDTYPE:  (TypeIdentName: TName);   
+END;
 
-TConst = record
-        case Kind : Byte of
-        INTNUMBERTOK:  (Value: LongInt);
-        FRACNUMBERTOK: (FracValue: Single);
-end;
+PConst = ^TConst;
+TConst = RECORD
+        CASE Kind : BYTE OF
+        INTNUMBERTOK:  (Value: LONGINT);
+        FRACNUMBERTOK: (FracValue: SINGLE);
+END;
 
 PIdentifier = ^TIdentifier;
-TIdentifier = record
-        Kind                : Byte;
+TIdentifier = RECORD
+        Kind                : BYTE;
         Name                : TName;
-        Value               : LongInt; // Value for a constant, address for a variable, procedure or function
-        FracValue           : Single;
-        Block               : Byte;    // Index of a block in which the identifier is defined
-        NestingLevel        : Byte;
-        DataType            : Byte;
-        RecType             : Byte;    // Parent record type code for a field
-        Scope               : Byte;
-        PassMethod          : Byte;    // Value, CONST or VAR parameter status
-        NumParams           : Byte;
-        Param               : array [1..MAXPARAMS] of PParam;
-        ProcAsBlock         : Byte;
-        PredefIndex         : Byte;
-        IsUnresolvedForward : Boolean;
+        Value               : LONGINT; { Value for a constant, address for a variable, procedure or function }
+        FracValue           : SINGLE;
+        Block               : BYTE;    { Index of a block in which the identifier is defined }
+        NestingLevel        : BYTE;
+        DataType            : BYTE;
+        RecType             : BYTE;    { Parent record type code for a field }
+        Scope               : BYTE;
+        PassMethod          : BYTE;    { Value, CONST or VAR parameter status }
+        NumParams           : BYTE;
+        Param               : ARRAY [1..MAXPARAMS] OF PParam;
+        ProcAsBlock         : BYTE;
+        PredefIndex         : BYTE;
+        IsUnresolvedForward : BOOLEAN;
         hash                : WORD;
         next                : PIdentifier;
-end;
+END;
 
 MZ_RELOC = RECORD
         ofs : WORD;
